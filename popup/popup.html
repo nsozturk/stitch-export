@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stitch Export</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#4285F4" />
+          <path d="M16 10v8M16 18v2M12 14l4 4 4-4M8 22h16" stroke="white" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <h1>Stitch Export</h1>
+      </div>
+      <p class="subtitle">Export conversations to LLM-compatible formats</p>
+    </header>
+
+    <main id="mainContent">
+      <!-- Not on Stitch page state -->
+      <div id="notOnStitchState" class="state hidden">
+        <div class="message-box warning">
+          <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          <div>
+            <h3>Not on Stitch</h3>
+            <p>Please navigate to a Stitch project page to export conversations.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ready to export state -->
+      <div id="readyState" class="state hidden">
+        <div class="format-selection">
+          <label class="section-label">Export Format</label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="format" value="claude" checked>
+              <div class="radio-content">
+                <span class="radio-title">Claude Code Format</span>
+                <span class="radio-description">Structured format compatible with Claude Code exports</span>
+              </div>
+            </label>
+
+            <label class="radio-option">
+              <input type="radio" name="format" value="openai">
+              <div class="radio-content">
+                <span class="radio-title">OpenAI ChatGPT Format</span>
+                <span class="radio-description">Compatible with OpenAI Chat Completion API</span>
+              </div>
+            </label>
+
+            <label class="radio-option">
+              <input type="radio" name="format" value="custom">
+              <div class="radio-content">
+                <span class="radio-title">Custom JSON Format</span>
+                <span class="radio-description">Customize role names for User and Assistant</span>
+              </div>
+            </label>
+          </div>
+
+          <div id="customSettings" class="custom-settings hidden">
+            <div class="input-group">
+              <label for="customUserRole">User Role Name:</label>
+              <input type="text" id="customUserRole" value="user" placeholder="e.g. Human">
+            </div>
+            <div class="input-group">
+              <label for="customAssistantRole">Assistant Role Name:</label>
+              <input type="text" id="customAssistantRole" value="assistant" placeholder="e.g. Model">
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="exportButton" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 4v10M10 14l-4-4M10 14l4-4M4 18h12" />
+            </svg>
+            Export Conversation
+          </button>
+
+          <button id="copyButton" class="btn btn-secondary">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="4" width="10" height="10" rx="2" />
+              <path d="M8 2h8a2 2 0 012 2v8" />
+            </svg>
+            Copy to Clipboard
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading state -->
+      <div id="loadingState" class="state hidden">
+        <div class="message-box">
+          <div class="spinner"></div>
+          <div>
+            <h3>Extracting conversation...</h3>
+            <p id="loadingMessage">Please wait...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success state -->
+      <div id="successState" class="state hidden">
+        <div class="message-box success">
+          <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M8 12l2 2 4-4" />
+          </svg>
+          <div>
+            <h3>Export Successful!</h3>
+            <p id="successMessage"></p>
+          </div>
+        </div>
+        <button id="backButton" class="btn btn-secondary">Export Another</button>
+      </div>
+
+      <!-- Error state -->
+      <div id="errorState" class="state hidden">
+        <div class="message-box error">
+          <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          <div>
+            <h3>Export Failed</h3>
+            <p id="errorMessage"></p>
+          </div>
+        </div>
+        <button id="retryButton" class="btn btn-secondary">Try Again</button>
+      </div>
+    </main>
+
+    <footer>
+      <p class="version">v1.0.0</p>
+      <p class="copyright">For stitch.withgoogle.com</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
