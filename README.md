@@ -6,6 +6,7 @@ Export Stitch conversations from https://stitch.withgoogle.com as JSON in LLM-fr
 
 - Export to Claude Code or OpenAI ChatGPT formats
 - Export via toolbar popup, in-page header button, or context menu
+- **Export All Projects**: batch-export every project into a single ZIP
 - Adds an Export button directly to the Stitch project header
 - Local-only processing (no data leaves your browser)
 
@@ -33,6 +34,12 @@ Export Stitch conversations from https://stitch.withgoogle.com as JSON in LLM-fr
 1. Open a Stitch project page
 2. Click the "Export" button in the header
 3. Choose a format and export
+
+### Batch Export (All Projects)
+1. Click the Stitch Export icon (anywhere)
+2. Click **Export All Projects**
+3. The extension opens each project in a background tab, exports it, and packs everything into a ZIP
+4. When finished, a single ZIP file is downloaded
 
 ### Context menu
 1. Right-click on a Stitch project page
@@ -80,8 +87,9 @@ Export Stitch conversations from https://stitch.withgoogle.com as JSON in LLM-fr
 ## Permissions
 
 - `activeTab` and `scripting`: read the Stitch page content
+- `tabs`: open background tabs for batch export
 - `contextMenus`: add a right-click export option
-- `downloads`: save the JSON export
+- `downloads`: save the JSON / ZIP export
 - Host permission for `https://stitch.withgoogle.com/*`
 
 ## Privacy

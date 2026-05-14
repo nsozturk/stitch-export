@@ -32,8 +32,17 @@
           </svg>
           <div>
             <h3>Not on Stitch</h3>
-            <p>Please navigate to a Stitch project page to export conversations.</p>
+            <p>Navigate to a Stitch project to export a single conversation, or use Export All below.</p>
           </div>
+        </div>
+
+        <div class="actions" style="margin-top: 16px;">
+          <button id="exportAllButtonNotOnStitch" class="btn btn-primary btn-batch">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 10h12M4 6h12M4 14h12" />
+            </svg>
+            Export All Projects
+          </button>
         </div>
       </div>
 
@@ -87,6 +96,13 @@
             Export Conversation
           </button>
 
+          <button id="exportAllButton" class="btn btn-primary btn-batch">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 10h12M4 6h12M4 14h12" />
+            </svg>
+            Export All Projects
+          </button>
+
           <button id="copyButton" class="btn btn-secondary">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="4" y="4" width="10" height="10" rx="2" />
@@ -105,6 +121,19 @@
             <h3>Extracting conversation...</h3>
             <p id="loadingMessage">Please wait...</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Batch export state -->
+      <div id="batchExportState" class="state hidden">
+        <div class="batch-progress-container">
+          <h3>Exporting All Projects</h3>
+          <div class="progress-bar-wrapper">
+            <div id="batchProgressBar" class="progress-bar" style="width: 0%"></div>
+          </div>
+          <p id="batchProgressText" class="batch-progress-text">Initializing...</p>
+          <p id="batchProgressCount" class="batch-progress-count">0 / 0 projects</p>
+          <button id="cancelBatchButton" class="btn btn-secondary btn-small">Cancel</button>
         </div>
       </div>
 

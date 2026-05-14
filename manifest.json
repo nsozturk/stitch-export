@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Stitch Export",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "nsozturk <telepenu@gmail.com>",
   "description": "Export Stitch conversations in LLM-compatible formats (Claude Code, OpenAI ChatGPT)",
   "permissions": [
     "activeTab",
     "scripting",
     "contextMenus",
-    "downloads"
+    "downloads",
+    "tabs"
   ],
   "host_permissions": [
     "https://stitch.withgoogle.com/*",

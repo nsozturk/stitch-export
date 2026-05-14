@@ -9,7 +9,8 @@ const AppState = {
   READY: 'ready',
   LOADING: 'loading',
   SUCCESS: 'success',
-  ERROR: 'error'
+  ERROR: 'error',
+  BATCH_EXPORT: 'batchExport'
 };
 
 let currentState = AppState.NOT_ON_STITCH;
@@ -20,22 +21,41 @@ const states = {
   ready: document.getElementById('readyState'),
   loading: document.getElementById('loadingState'),
   success: document.getElementById('successState'),
-  error: document.getElementById('errorState')
+  error: document.getElementById('errorState'),
+  batchExport: document.getElementById('batchExportState')
 };
 
 const elements = {
   exportButton: document.getElementById('exportButton'),
+  exportAllButton: document.getElementById('exportAllButton'),
+  exportAllButtonNotOnStitch: document.getElementById('exportAllButtonNotOnStitch'),
   copyButton: document.getElementById('copyButton'),
   backButton: document.getElementById('backButton'),
   retryButton: document.getElementById('retryButton'),
+  cancelBatchButton: document.getElementById('cancelBatchButton'),
   loadingMessage: document.getElementById('loadingMessage'),
   successMessage: document.getElementById('successMessage'),
-  errorMessage: document.getElementById('errorMessage')
+  errorMessage: document.getElementById('errorMessage'),
+  batchProgressBar: document.getElementById('batchProgressBar'),
+  batchProgressText: document.getElementById('batchProgressText'),
+  batchProgressCount: document.getElementById('batchProgressCount')
 };
 
 // Initialize popup
 async function initialize() {
   console.log('[Stitch Export] Initializing popup...');
+
+  // Check if batch export is currently running
+  try {
+    const batchState = await chrome.runtime.sendMessage({ action: 'getBatchExportState' });
+    if (batchState && batchState.isRunning) {
+      setState(AppState.BATCH_EXPORT);
+      updateBatchProgressUI(batchState.current, batchState.total, 'Resuming...');
+      return;
+    }
+  } catch (e) {
+    // Ignore
+  }
 
   // Check if we're on a Stitch page
   const isOnStitch = await checkIfOnStitchPage();
@@ -48,6 +68,16 @@ async function initialize() {
 
   // Setup event listeners
   setupEventListeners();
+
+  // Listen for batch progress messages from background
+  chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === 'batchProgress') {
+      if (currentState !== AppState.BATCH_EXPORT) {
+        setState(AppState.BATCH_EXPORT);
+      }
+      updateBatchProgressUI(request.current, request.total, request.message);
+    }
+  });
 }
 
 // Check if current tab is on Stitch
@@ -70,9 +100,12 @@ async function checkIfOnStitchPage() {
 // Setup event listeners
 function setupEventListeners() {
   elements.exportButton?.addEventListener('click', handleExport);
+  elements.exportAllButton?.addEventListener('click', handleExportAll);
+  elements.exportAllButtonNotOnStitch?.addEventListener('click', handleExportAll);
   elements.copyButton?.addEventListener('click', handleCopyToClipboard);
   elements.backButton?.addEventListener('click', () => setState(AppState.READY));
   elements.retryButton?.addEventListener('click', () => setState(AppState.READY));
+  elements.cancelBatchButton?.addEventListener('click', handleCancelBatch);
 
   // Toggle custom settings visibility
   const radioButtons = document.querySelectorAll('input[name="format"]');
@@ -174,6 +207,69 @@ async function handleExport() {
     console.error('[Stitch Export] Export error:', error);
     setState(AppState.ERROR);
     updateErrorMessage(error.message || 'An unexpected error occurred');
+  }
+}
+
+// Handle export all projects action
+async function handleExportAll() {
+  try {
+    setState(AppState.BATCH_EXPORT);
+    updateBatchProgressUI(0, 0, 'Starting batch export...');
+
+    // Get selected format
+    const format = getSelectedFormat();
+
+    // Get custom options if applicable
+    const options = {};
+    if (format === 'custom') {
+      options.userRole = document.getElementById('customUserRole').value || 'user';
+      options.assistantRole = document.getElementById('customAssistantRole').value || 'assistant';
+    }
+
+    // Start batch export in background
+    const result = await chrome.runtime.sendMessage({
+      action: 'exportAllProjects',
+      format,
+      options
+    });
+
+    if (result && result.success) {
+      setState(AppState.SUCCESS);
+      updateSuccessMessage(`Successfully exported ${result.exportedCount}/${result.totalCount} projects to ZIP!`);
+    } else {
+      throw new Error(result?.error || 'Batch export failed');
+    }
+
+  } catch (error) {
+    console.error('[Stitch Export] Batch export error:', error);
+    setState(AppState.ERROR);
+    updateErrorMessage(error.message || 'Batch export failed');
+  }
+}
+
+// Handle cancel batch export
+async function handleCancelBatch() {
+  try {
+    await chrome.runtime.sendMessage({ action: 'cancelBatchExport' });
+    updateBatchProgressUI(0, 0, 'Cancelling...');
+  } catch (e) {
+    console.error('[Stitch Export] Cancel error:', e);
+  }
+}
+
+// Update batch export UI
+function updateBatchProgressUI(current, total, message) {
+  if (elements.batchProgressBar) {
+    const percent = total > 0 ? Math.round((current / total) * 100) : 0;
+    elements.batchProgressBar.style.width = percent + '%';
+  }
+
+  if (elements.batchProgressText && message) {
+    elements.batchProgressText.textContent = message;
+  }
+
+  if (elements.batchProgressCount) {
+    elements.batchProgressCount.textContent = `${current} / ${total} projects`;
   }
 }
 
@@ -289,11 +385,8 @@ function extractAndFormat(format, options = {}) {
       let content = div.textContent.trim();
 
       // Clean up Stitch-specific formatting
-      // Remove "[Images generated by Stitch]:" section and profile/avatar image references
       content = content.replace(/\[Images generated by Stitch\]:[\s\S]*?---\s*/g, '');
-      // Remove standalone profile/avatar image URLs
       content = content.replace(/https:\/\/lh3\.googleusercontent\.com\/a\/[^\s]+/g, '');
-      // Clean up excessive whitespace
       content = content.replace(/\n{3,}/g, '\n\n').trim();
 
       if (content) {
@@ -447,6 +540,9 @@ function setState(state) {
       break;
     case AppState.ERROR:
       states.error?.classList.remove('hidden');
+      break;
+    case AppState.BATCH_EXPORT:
+      states.batchExport?.classList.remove('hidden');
       break;
   }
 }

@@ -1,18 +1,27 @@
 /**
  * Stitch Export Background Service Worker
- * Handles context menu and background tasks
+ * Handles context menu, batch export, and background tasks
  */
+
+importScripts('libs/jszip.min.js');
 
 // Create context menu on installation
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[Stitch Export] Extension installed');
 
-  // Create context menu item
+  // Create context menu items
   chrome.contextMenus.create({
     id: 'stitch-export-context',
     title: 'Export Stitch Conversation',
     contexts: ['page'],
     documentUrlPatterns: ['https://stitch.withgoogle.com/projects/*']
+  });
+
+  chrome.contextMenus.create({
+    id: 'stitch-export-all-context',
+    title: 'Export All Stitch Projects',
+    contexts: ['page'],
+    documentUrlPatterns: ['https://stitch.withgoogle.com/*']
   });
 
   console.log('[Stitch Export] Context menu created');
@@ -23,7 +32,21 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'stitch-export-context') {
     handleContextMenuExport(tab);
   }
+  if (info.menuItemId === 'stitch-export-all-context') {
+    handleContextMenuExportAll(tab);
+  }
 });
+
+// Handle context menu export all
+async function handleContextMenuExportAll(tab) {
+  try {
+    console.log('[Stitch Export] Context menu export-all triggered');
+    // Use default format (claude)
+    await handleExportAllProjects('claude', {});
+  } catch (error) {
+    console.error('[Stitch Export] Context menu export-all error:', error);
+  }
+}
 
 // Handle context menu export
 async function handleContextMenuExport(tab) {
@@ -292,12 +315,42 @@ function showExportDialog() {
   });
 }
 
+// Batch export state
+let batchExportState = {
+  isRunning: false,
+  total: 0,
+  current: 0,
+  projects: [],
+  results: [],
+  format: 'claude',
+  cancelled: false
+};
+
 // Listen for messages from popup or content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Stitch Export] Message received:', request);
 
   if (request.action === 'export') {
     handleExportRequest(request.format, sender.tab);
+    return true;
+  }
+
+  if (request.action === 'exportAllProjects') {
+    handleExportAllProjects(request.format, request.options)
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === 'getBatchExportState') {
+    sendResponse({ ...batchExportState });
+    return true;
+  }
+
+  if (request.action === 'cancelBatchExport') {
+    batchExportState.cancelled = true;
+    sendResponse({ success: true });
+    return true;
   }
 
   return true;
@@ -332,6 +385,420 @@ async function handleExportRequest(format, tab) {
   } catch (error) {
     console.error('[Stitch Export] Export request error:', error);
   }
+}
+
+// ============================================================
+// Batch Export All Projects
+// ============================================================
+
+async function handleExportAllProjects(format, options = {}) {
+  batchExportState = {
+    isRunning: true,
+    total: 0,
+    current: 0,
+    projects: [],
+    results: [],
+    format,
+    cancelled: false
+  };
+
+  try {
+    console.log('[Stitch Export] Starting batch export...');
+    updateBatchProgress('Fetching project list...', 0, 0);
+
+    // Step 1: Get project list from dashboard
+    const projects = await fetchProjectList();
+    if (!projects || projects.length === 0) {
+      throw new Error('No projects found. Make sure you are logged into stitch.withgoogle.com');
+    }
+
+    batchExportState.total = projects.length;
+    batchExportState.projects = projects;
+    updateBatchProgress(`Found ${projects.length} projects. Starting export...`, 0, projects.length);
+
+    // Step 2: Export each project
+    for (let i = 0; i < projects.length; i++) {
+      if (batchExportState.cancelled) {
+        throw new Error('Export cancelled by user');
+      }
+
+      batchExportState.current = i + 1;
+      const project = projects[i];
+      const progressText = `Exporting project ${i + 1}/${projects.length}: ${project.title || project.id}`;
+      updateBatchProgress(progressText, i + 1, projects.length);
+
+      try {
+        const result = await exportSingleProject(project, format, options);
+        if (result.success) {
+          batchExportState.results.push(result);
+          console.log(`[Stitch Export] Exported project ${project.id}: ${result.filename}`);
+        } else {
+          console.warn(`[Stitch Export] Failed to export project ${project.id}: ${result.error}`);
+        }
+      } catch (error) {
+        console.error(`[Stitch Export] Error exporting project ${project.id}:`, error);
+      }
+
+      // Small delay between projects to avoid overwhelming the browser
+      await delay(1500);
+    }
+
+    // Step 3: Create ZIP
+    const exportedCount = batchExportState.results.length;
+    if (exportedCount === 0) {
+      throw new Error('No projects were successfully exported');
+    }
+
+    updateBatchProgress(`Creating ZIP archive with ${exportedCount} exports...`, batchExportState.total, batchExportState.total);
+    const zipBase64 = await createZipFromResults(batchExportState.results, format);
+
+    // Step 4: Download
+    const timestamp = new Date().toISOString().split('T')[0];
+    const dataUrl = 'data:application/zip;base64,' + zipBase64;
+
+    await chrome.downloads.download({
+      url: dataUrl,
+      filename: `stitch-all-exports-${format}-${timestamp}.zip`,
+      saveAs: true
+    });
+
+    updateBatchProgress(`Done! Exported ${exportedCount}/${batchExportState.total} projects.`, batchExportState.total, batchExportState.total);
+
+    return {
+      success: true,
+      exportedCount,
+      totalCount: batchExportState.total
+    };
+
+  } catch (error) {
+    console.error('[Stitch Export] Batch export error:', error);
+    updateBatchProgress(`Error: ${error.message}`, batchExportState.current, batchExportState.total);
+    return { success: false, error: error.message };
+  } finally {
+    batchExportState.isRunning = false;
+  }
+}
+
+// Fetch list of projects from the Stitch dashboard
+async function fetchProjectList() {
+  // Open dashboard in a background tab
+  const tab = await chrome.tabs.create({
+    url: 'https://stitch.withgoogle.com/',
+    active: false
+  });
+
+  try {
+    // Wait for tab to finish loading
+    await waitForTabLoad(tab.id);
+
+    // The Stitch dashboard renders in an iframe; wait for it to load
+    // Retry a few times with increasing delays
+    let allProjects = [];
+    const attempts = [
+      { wait: 6000,  desc: 'initial' },
+      { wait: 4000,  desc: 'retry-1' },
+      { wait: 5000,  desc: 'retry-2' }
+    ];
+
+    for (const attempt of attempts) {
+      if (allProjects.length > 0) break;
+
+      console.log(`[Stitch Export] Dashboard extraction attempt: ${attempt.desc}, waiting ${attempt.wait}ms...`);
+      await delay(attempt.wait);
+
+      // First: try to read iframe src attributes from the main frame to get direct iframe URLs
+      const iframeResults = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: extractIframeProjectUrls
+      });
+
+      for (const r of iframeResults) {
+        if (r.result && Array.isArray(r.result)) {
+          for (const p of r.result) {
+            if (p && p.id && !allProjects.find(ap => ap.id === p.id)) {
+              allProjects.push(p);
+            }
+          }
+        }
+      }
+
+      // Second: run inside all frames (main + iframes) to scrape links
+      const frameResults = await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        func: extractProjectListFromPage
+      });
+
+      for (const r of frameResults) {
+        if (r.result && Array.isArray(r.result)) {
+          for (const p of r.result) {
+            if (p && p.id && !allProjects.find(ap => ap.id === p.id)) {
+              allProjects.push(p);
+            }
+          }
+        }
+      }
+
+      console.log(`[Stitch Export] Attempt ${attempt.desc}: found ${allProjects.length} projects`);
+    }
+
+    return allProjects;
+
+  } finally {
+    // Always close the dashboard tab
+    try {
+      await chrome.tabs.remove(tab.id);
+    } catch (e) {
+      // Tab may already be closed
+    }
+  }
+}
+
+// Extract project URLs from iframe src attributes in the main frame
+function extractIframeProjectUrls() {
+  const projects = [];
+  const seen = new Set();
+
+  // The Stitch app renders inside an iframe from appspot.com
+  const iframes = document.querySelectorAll('iframe');
+  for (const iframe of iframes) {
+    const src = iframe.src || '';
+    // Match project IDs in iframe src URLs like:
+    // https://app-companion-430619.appspot.com/projects/123456
+    const match = src.match(/projects\/(\d+)/);
+    if (match) {
+      const id = match[1];
+      if (!seen.has(id)) {
+        seen.add(id);
+        projects.push({
+          id,
+          title: `Project ${id}`,
+          url: `https://stitch.withgoogle.com/projects/${id}`
+        });
+      }
+    }
+  }
+
+  return projects;
+}
+
+// Self-contained function injected into page (main or iframe) to extract project list
+function extractProjectListFromPage() {
+  const projects = [];
+  const seenIds = new Set();
+
+  // Strategy 1: Full href links containing /projects/
+  const links = document.querySelectorAll('a[href*="/projects/"]');
+  links.forEach(link => {
+    const match = link.href.match(/projects\/(\d+)/);
+    if (match) {
+      const id = match[1];
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        const title = link.textContent.trim() || `Project ${id}`;
+        projects.push({ id, title, url: link.href });
+      }
+    }
+  });
+
+  // Strategy 1b: Relative href links (hash or path-only routing)
+  const relLinks = document.querySelectorAll('a[href^="#/projects/"], a[href^="/projects/"], a[href^="projects/"]');
+  relLinks.forEach(link => {
+    const match = link.getAttribute('href').match(/projects\/(\d+)/);
+    if (match) {
+      const id = match[1];
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        const title = link.textContent.trim() || `Project ${id}`;
+        projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
+      }
+    }
+  });
+
+  // Strategy 2: data-project-id attributes
+  const dataElements = document.querySelectorAll('[data-project-id]');
+  dataElements.forEach(el => {
+    const id = el.getAttribute('data-project-id');
+    if (id && !seenIds.has(id)) {
+      seenIds.add(id);
+      const titleEl = el.querySelector('h3, h4, .title, [class*="title"], span, p, div');
+      const title = titleEl ? titleEl.textContent.trim() : `Project ${id}`;
+      projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
+    }
+  });
+
+  // Strategy 3: Search innerText/innerHTML for project IDs in likely containers
+  const containers = document.querySelectorAll('section, article, div[role="listitem"], [class*="project"], [class*="card"], [class*="item"], [class*="row"]');
+  containers.forEach(container => {
+    const html = container.innerHTML;
+    const matches = html.matchAll(/projects\/(\d+)/g);
+    for (const match of matches) {
+      const id = match[1];
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        // Try to find a nearby title
+        const titleEl = container.querySelector('h1, h2, h3, h4, .title, [class*="title"], [class*="name"], span, p, div');
+        const title = titleEl ? titleEl.textContent.trim().substring(0, 100) : `Project ${id}`;
+        projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
+      }
+    }
+  });
+
+  // Strategy 4: Look for numeric IDs in any onclick or data attributes
+  const allElements = document.querySelectorAll('[onclick*="projects"], [data-href*="projects"], [data-url*="projects"]');
+  allElements.forEach(el => {
+    const attrs = ['onclick', 'data-href', 'data-url', 'data-link'];
+    for (const attr of attrs) {
+      const val = el.getAttribute(attr);
+      if (val) {
+        const match = val.match(/projects\/(\d+)/);
+        if (match) {
+          const id = match[1];
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            const title = el.textContent.trim() || `Project ${id}`;
+            projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
+          }
+        }
+      }
+    }
+  });
+
+  return projects;
+}
+
+// Export a single project by opening it in a temporary tab
+async function exportSingleProject(project, format, options) {
+  const tab = await chrome.tabs.create({
+    url: project.url,
+    active: false
+  });
+
+  try {
+    // Wait for tab load
+    await waitForTabLoad(tab.id);
+
+    // Wait for iframe content to load
+    await delay(5000);
+
+    // Try extraction (may need retries if iframe is slow)
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await delay(3000);
+      }
+
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        func: (fmt, opts) => {
+          try {
+            if (typeof StitchExtractor === 'undefined') {
+              return { success: false, error: 'StitchExtractor not loaded' };
+            }
+
+            const data = StitchExtractor.extractConversation();
+            if (!data || !data.messages || data.messages.length === 0) {
+              return { success: false, error: 'No conversation data found' };
+            }
+
+            const formatted = StitchFormatters.format(data, fmt, opts);
+            const filename = StitchFormatters.generateFilename(data, fmt);
+
+            return {
+              success: true,
+              data: formatted,
+              filename,
+              projectId: data.projectId,
+              projectTitle: data.projectTitle
+            };
+          } catch (err) {
+            return { success: false, error: err.message };
+          }
+        },
+        args: [format, options]
+      });
+
+      // Find first successful result from any frame
+      for (const result of results) {
+        if (result.result && result.result.success) {
+          return result.result;
+        }
+        if (result.result && result.result.error) {
+          lastError = result.result.error;
+        }
+      }
+    }
+
+    return { success: false, error: lastError || 'No data extracted after retries' };
+
+  } finally {
+    try {
+      await chrome.tabs.remove(tab.id);
+    } catch (e) {
+      // Tab may already be closed
+    }
+  }
+}
+
+// Create a ZIP archive from all export results
+async function createZipFromResults(results, format) {
+  const zip = new JSZip();
+  const folderName = `stitch-exports-${format}-${new Date().toISOString().split('T')[0]}`;
+  const folder = zip.folder(folderName);
+
+  for (const result of results) {
+    const filename = result.filename || `stitch-export-${result.projectId}-${format}.json`;
+    const content = JSON.stringify(result.data, null, 2);
+    folder.file(filename, content);
+  }
+
+  // Generate base64
+  return await zip.generateAsync({ type: 'base64' });
+}
+
+// Update batch progress (broadcast to popup if open)
+function updateBatchProgress(message, current, total) {
+  batchExportState.current = current;
+  batchExportState.total = total;
+
+  console.log(`[Stitch Export] Batch progress: ${message} (${current}/${total})`);
+
+  // Broadcast to any listening popups
+  try {
+    chrome.runtime.sendMessage({
+      action: 'batchProgress',
+      message,
+      current,
+      total
+    }).catch(() => {
+      // Popup may not be open, ignore error
+    });
+  } catch (e) {
+    // Ignore
+  }
+}
+
+// Wait for a tab to finish loading
+async function waitForTabLoad(tabId) {
+  // Check if already complete
+  const tab = await chrome.tabs.get(tabId);
+  if (tab.status === 'complete') {
+    return;
+  }
+
+  return new Promise((resolve) => {
+    const listener = (updatedTabId, changeInfo) => {
+      if (updatedTabId === tabId && changeInfo.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+// Promise-based delay
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 console.log('[Stitch Export] Background script loaded');
