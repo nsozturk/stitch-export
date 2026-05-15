@@ -66,7 +66,7 @@ async function initialize() {
       
       // If it was cancelled but still running
       if (batchState.cancelled) {
-         updateBatchProgressUI(batchState.current, batchState.total, 'Cancelling... please wait for current task to finish.');
+         updateBatchProgressUI(batchState.current, batchState.total, 'Cancelled by user');
          if(elements.cancelBatchButton) {
             elements.cancelBatchButton.disabled = true;
             elements.cancelBatchButton.textContent = 'Cancelling...';
@@ -268,7 +268,7 @@ async function handleCancelBatch() {
        elements.cancelBatchButton.textContent = 'Cancelling...';
     }
     await chrome.runtime.sendMessage({ action: 'cancelBatchExport' });
-    updateBatchProgressUI(0, 0, 'Cancelling... (waiting for current tab to finish)');
+    updateBatchProgressUI(0, 0, 'Cancelled by user');
   } catch (e) {
     console.error('[Stitch Export] Cancel error:', e);
   }

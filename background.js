@@ -347,8 +347,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  if (request.action === 'cancelBatchExport') {
+    if (request.action === 'cancelBatchExport') {
     batchExportState.cancelled = true;
+    if (batchExportState.currentTabId) {
+       chrome.tabs.remove(batchExportState.currentTabId).catch(() => {});
+       batchExportState.currentTabId = null;
+    }
     sendResponse({ success: true });
     return true;
   }
@@ -472,7 +476,7 @@ async function handleExportAllProjects(format, options = {}) {
 
   } catch (error) {
     console.error('[Stitch Export] Batch export error:', error);
-    updateBatchProgress(`Error: ${error.message}`, batchExportState.current, batchExportState.total);
+    updateBatchProgress(error.message === 'Export cancelled by user' ? 'Cancelled.' : `Error: ${error.message}`, batchExportState.current, batchExportState.total);
     return { success: false, error: error.message };
   } finally {
     batchExportState.isRunning = false;
@@ -486,6 +490,7 @@ async function fetchProjectList() {
     url: 'https://stitch.withgoogle.com/',
     active: false
   });
+  batchExportState.currentTabId = tab.id;
 
   try {
     // Wait for tab to finish loading
@@ -709,6 +714,7 @@ async function exportSingleProject(project, format, options) {
     url: project.url,
     active: false
   });
+  batchExportState.currentTabId = tab.id;
 
   try {
     // Wait for tab load
