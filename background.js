@@ -632,68 +632,72 @@ async function interceptAndClickDownload() {
       reject(new Error(document.documentElement.getAttribute('data-stitch-error')));
     });
 
-    // Start UI interaction
-    setTimeout(triggerDownloadClicks, 1000);
+        // Start UI interaction
+    setTimeout(triggerDownloadClicks, 2000);
 
-    function triggerDownloadClicks() {
-      // Find hamburger menu and click it
-      const buttons = Array.from(document.querySelectorAll('button'));
-      let menuBtn = buttons.find(b => {
-        // Look for typical menu buttons: top-left corner, SVG icons
-        const rect = b.getBoundingClientRect();
-        const isTopLeft = rect.top >= 0 && rect.top < 100 && rect.left >= 0 && rect.left < 100;
-        const hasSvg = b.querySelector('svg');
-        // The screenshot shows a button with 3 horizontal lines
-        return isTopLeft && hasSvg;
-      });
-
-      if (!menuBtn) {
-         // Fallback to searching by SVG path (hamburger menu)
-         const svgs = document.querySelectorAll('svg path');
-         for (const path of svgs) {
-            const d = path.getAttribute('d');
-            // Check if it's a hamburger menu (multiple horizontal lines)
-            if (d && (d.includes('M4.484') || d.includes('v-7.5') || d.includes('M2.75 16'))) {
-               let target = path;
-               while(target && target.tagName !== 'BUTTON') {
-                 target = target.parentElement;
+    async function triggerDownloadClicks() {
+      try {
+         // Find all buttons in the top-left area
+         const buttons = Array.from(document.querySelectorAll('button')).filter(b => {
+             const rect = b.getBoundingClientRect();
+             return rect.top >= 0 && rect.top < 150 && rect.left >= 0 && rect.left < 150 && b.querySelector('svg');
+         });
+         
+         let foundDownloadBtn = false;
+         
+         for (const menuBtn of buttons) {
+            console.log('[Stitch Extractor] Trying menu button');
+            menuBtn.click();
+            
+            // Wait for menu animation
+            await new Promise(r => setTimeout(r, 1000));
+            
+            const allEls = Array.from(document.querySelectorAll('*'));
+            let dBtn = allEls.find(el => {
+              return el.childNodes.length === 1 && 
+                     el.textContent.trim().toLowerCase().includes('download project');
+            });
+            
+            if (dBtn) {
+               foundDownloadBtn = true;
+               console.log('[Stitch Extractor] Clicking Download Project');
+               let target = dBtn;
+               while(target && target.tagName !== 'BUTTON' && target.tagName !== 'LI' && target.tagName !== 'DIV') {
+                   if (target.onclick) break;
+                   target = target.parentElement;
                }
-               if (target) { menuBtn = target; break; }
+               (target || dBtn).click();
+               
+               // Set a timeout to fail if interception never happens
+               setTimeout(() => {
+                  if(!window.__stitchInterceptedBlob) {
+                     document.documentElement.setAttribute('data-stitch-error', 'Download did not start within 15 seconds.');
+                     document.dispatchEvent(new CustomEvent('StitchDownloadError'));
+                  }
+               }, 15000);
+               break;
+            } else {
+               // Close menu
+               menuBtn.click();
+               await new Promise(r => setTimeout(r, 500));
             }
          }
-      }
-
-      if (menuBtn) {
-        console.log('[Stitch Extractor] Clicking menu button');
-        menuBtn.click();
-        
-        // Wait for menu to open and find "Download Project"
-        setTimeout(() => {
-          const allEls = Array.from(document.querySelectorAll('*'));
-          let dBtn = allEls.find(el => {
-            return el.childNodes.length === 1 && 
-                   el.textContent.trim() === 'Download Project';
-          });
-
-          if (dBtn) {
-            console.log('[Stitch Extractor] Clicking Download Project');
-            let target = dBtn;
-            while(target && target.tagName !== 'BUTTON' && target.tagName !== 'LI') {
-                target = target.parentElement;
+         
+         if (!foundDownloadBtn) {
+            // Also try to look for the button directly, just in case it's not hidden behind a menu
+            const allEls = Array.from(document.querySelectorAll('*'));
+            let dBtn = allEls.find(el => el.childNodes.length === 1 && el.textContent.trim().toLowerCase().includes('download project'));
+            if (dBtn) {
+               console.log('[Stitch Extractor] Found Download Project without menu!');
+               dBtn.click();
+            } else {
+               document.documentElement.setAttribute('data-stitch-error', 'Download Project button not found in UI.');
+               document.dispatchEvent(new CustomEvent('StitchDownloadError'));
             }
-            (target || dBtn).click();
-            
-            // Wait 10 seconds for the download to trigger, otherwise fail
-            setTimeout(() => {
-               reject(new Error("Download did not start within 10 seconds. Check if ZIP generation takes longer."));
-            }, 10000);
-            
-          } else {
-            reject(new Error("Download Project button not found in menu"));
-          }
-        }, 1500); // Wait 1.5s for menu animation
-      } else {
-        reject(new Error("Hamburger menu button not found"));
+         }
+      } catch(e) {
+         document.documentElement.setAttribute('data-stitch-error', e.message);
+         document.dispatchEvent(new CustomEvent('StitchDownloadError'));
       }
     }
   });
