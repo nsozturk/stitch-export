@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stitch Export · Chrome Web Store Launch Guide</title>
+<style>
+  :root {
+    --bg: #0b0c10;
+    --bg-elev: #15171f;
+    --bg-card: #1c1f2a;
+    --border: #2a2e3d;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --accent: #8D6A8A;
+    --accent-soft: #8D6A8A33;
+    --accent-deep: #50384E;
+    --accent-hover: #745472;
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #ef4444;
+    --info: #60a5fa;
+    --ref: #c084fc;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fafafa;
+      --bg-elev: #ffffff;
+      --bg-card: #ffffff;
+      --border: #e5e7eb;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #8D6A8A;
+      --accent-soft: #8D6A8A22;
+      --accent-deep: #50384E;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 48px 24px 96px; }
+  .back {
+    display: inline-block;
+    margin-bottom: 20px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-elev);
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+  .back:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+  header { margin-bottom: 32px; }
+  header .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  h1 {
+    margin: 6px 0 8px;
+    font-size: 36px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+  h1 .dot { color: var(--accent); }
+  header p.lede {
+    margin: 0;
+    color: var(--muted);
+    font-size: 17px;
+    max-width: 64ch;
+  }
+  .quick {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 24px 0 40px;
+  }
+  .quick a {
+    display: block;
+    padding: 14px 16px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+  }
+  .quick a:hover {
+    border-color: var(--accent);
+    text-decoration: none;
+  }
+  .quick a strong { display: block; font-size: 14px; }
+  .quick a span { font-size: 12px; color: var(--muted); }
+  .search { margin: 0 0 32px; }
+  .search input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+  }
+  .search input:focus { border-color: var(--accent); }
+  h2 {
+    margin: 40px 0 16px;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  .phases { display: grid; gap: 12px; }
+  .phase {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    align-items: center;
+    transition: border-color 0.15s ease;
+  }
+  .phase:hover { border-color: var(--accent); }
+  .phase .num {
+    font-family: ui-monospace, SF Mono, Menlo, monospace;
+    font-size: 22px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .phase .body strong {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 2px;
+  }
+  .phase .body p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .phase a { color: inherit; }
+  .phase a:hover { text-decoration: none; }
+  .badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .badge.todo { color: var(--muted); }
+  .badge.partial { color: var(--warn); border-color: #5a4716; }
+  .badge.done { color: var(--good); border-color: #1f4d2f; }
+  .badge.blocked { color: var(--bad); border-color: #5a1d1d; }
+  .badge.ref { color: var(--ref); border-color: #3a2a55; }
+  .meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 24px 0 0;
+    padding: 16px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+  }
+  .meta dt { color: var(--muted); }
+  .meta dd { margin: 0 0 8px; font-family: ui-monospace, SF Mono, Menlo, monospace; }
+  footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<a class="back" href="../index.html">← stores hub</a>
+
+<header>
+  <div class="eyebrow">Stitch Export · Chrome Web Store</div>
+  <h1>Launch Guide<span class="dot">.</span></h1>
+  <p class="lede">
+    Stitch Export v1.2.0 Chrome Web Store yayın yol haritası — kronolojik,
+    screenshot odaklı, gerçekten yapılan adımlar. 01'den 08'e sırayla ilerle.
+  </p>
+</header>
+
+<nav class="quick">
+  <a href="README.html">
+    <strong>README</strong>
+    <span>Master checklist + app constants</span>
+  </a>
+  <a href="STATUS.html">
+    <strong>STATUS</strong>
+    <span>Canlı yayın durumu</span>
+  </a>
+  <a href="https://chrome.google.com/webstore/devconsole" target="_blank" rel="noopener">
+    <strong>Dev Console ↗</strong>
+    <span>Chrome Web Store Dashboard</span>
+  </a>
+  <a href="../../../PUBLISH.md" target="_blank">
+    <strong>PUBLISH.md</strong>
+    <span>Eski yayın notu (tek dosyalık)</span>
+  </a>
+</nav>
+
+<div class="search">
+  <input id="q" placeholder="Filtrele — 'screenshot', 'permission', 'submit', 'badge'..." />
+</div>
+
+<h2>Phases</h2>
+<div class="phases" id="phases">
+
+  <div class="phase" data-keys="prerequisites developer account 2fa unpacked smoke test">
+    <div class="num">01</div>
+    <div class="body">
+      <a href="01-prerequisites/index.html"><strong>Prerequisites</strong></a>
+      <p>Developer hesabı, 2FA, working unpacked install + smoke test</p>
+    </div>
+    <span class="badge done">✅ done</span>
+  </div>
+
+  <div class="phase" data-keys="package prep zip manifest version exclude clean">
+    <div class="num">02</div>
+    <div class="body">
+      <a href="02-package-prep/index.html"><strong>Package Prep</strong></a>
+      <p>Prod ZIP oluştur, dev artefactları ayıkla, manifest version validate</p>
+    </div>
+    <span class="badge todo">⏳ todo</span>
+  </div>
+
+  <div class="phase" data-keys="developer dashboard upload package validation existing item">
+    <div class="num">03</div>
+    <div class="body">
+      <a href="03-developer-dashboard/index.html"><strong>Developer Dashboard</strong></a>
+      <p>Dashboard'a giriş, mevcut item'ı bul, ZIP upload, validasyon</p>
+    </div>
+    <span class="badge todo">⏳ todo</span>
+  </div>
+
+  <div class="phase" data-keys="store listing description title summary category language whats new">
+    <div class="num">04</div>
+    <div class="body">
+      <a href="04-store-listing/index.html"><strong>Store Listing</strong></a>
+      <p>Title, summary, description, "What's new" v1.2.0 notu, kategori</p>
+    </div>
+    <span class="badge todo">⏳ todo</span>
+  </div>
+
+  <div class="phase" data-keys="icons screenshots store icon promo tile marquee small 1280 800 128">
+    <div class="num">05</div>
+    <div class="body">
+      <a href="05-icons-and-screenshots/index.html"><strong>Icons &amp; Screenshots</strong></a>
+      <p>Store icon 128×128, 4-5 screenshot 1280×800, opsiyonel promo tile</p>
+    </div>
+    <span class="badge partial">🟡 partial</span>
+  </div>
+
+  <div class="phase" data-keys="privacy permissions tabs justification host policy url single purpose">
+    <div class="num">06</div>
+    <div class="body">
+      <a href="06-privacy-permissions/index.html"><strong>Privacy &amp; Permissions</strong></a>
+      <p>Single purpose + her permission için justification (özellikle tabs)</p>
+    </div>
+    <span class="badge todo">⏳ todo</span>
+  </div>
+
+  <div class="phase" data-keys="submit for review reviewer note publish in review timeline">
+    <div class="num">07</div>
+    <div class="body">
+      <a href="07-submit-review/index.html"><strong>Submit for Review</strong></a>
+      <p>Submit + reviewer note + 1-3 gün bekleme + olası ret nedenleri</p>
+    </div>
+    <span class="badge blocked">🚫 blocked by 06</span>
+  </div>
+
+  <div class="phase" data-keys="post launch analytics permission upgrade prompt git tag release hot patch">
+    <div class="num">08</div>
+    <div class="body">
+      <a href="08-post-launch/index.html"><strong>Post-Launch</strong></a>
+      <p>Yayını doğrula, permission upgrade prompt, git tag, analytics</p>
+    </div>
+    <span class="badge ref">📚 reference</span>
+  </div>
+
+</div>
+
+<h2>App constants</h2>
+<dl class="meta">
+  <dt>Eklenti adı</dt><dd>Stitch Export</dd>
+  <dt>Yeni versiyon</dt><dd>1.2.0</dd>
+  <dt>Önceki versiyon</dt><dd>1.1.0</dd>
+  <dt>Manifest version</dt><dd>3</dd>
+  <dt>Author</dt><dd>nsozturk &lt;telepenu@gmail.com&gt;</dd>
+  <dt>Primary category</dt><dd>Developer Tools</dd>
+  <dt>Secondary category</dt><dd>Productivity</dd>
+  <dt>Permissions</dt><dd>activeTab, scripting, contextMenus, downloads, <strong>tabs</strong></dd>
+  <dt>Tema</dt><dd>#8D6A8A → #50384E</dd>
+  <dt>GitHub</dt><dd>github.com/nsozturk/stitch-export</dd>
+</dl>
+
+<footer>
+  <p>
+    Bu hub'ı offline aç: macOS Finder'da <code>open index.html</code>. Tüm
+    içerik <code>README.md</code> dosyalarından <code>marked.js</code> ile
+    render ediliyor — kaynak gerçek dosyalar, HTML'ler regeneratable.
+    Render script: <code>docs/stores/scripts/render-docs.py</code>.
+  </p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var input = document.getElementById('q');
+  var phases = Array.prototype.slice.call(document.querySelectorAll('.phase'));
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    phases.forEach(function (el) {
+      if (!q) { el.style.display = ''; return; }
+      var hay = (el.dataset.keys || '') + ' ' + (el.textContent || '');
+      el.style.display = hay.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+    });
+  });
+})();
+</script>
+</body>
+</html>

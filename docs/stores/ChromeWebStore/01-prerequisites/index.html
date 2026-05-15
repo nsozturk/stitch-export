@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>01 · Prerequisites · Stitch Export</title>
+<style>
+:root {
+  --bg: #0b0c10;
+  --bg-elev: #15171f;
+  --bg-card: #1c1f2a;
+  --border: #2a2e3d;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #8D6A8A;
+  --accent-soft: #8D6A8A33;
+  --accent-deep: #50384E;
+  --accent-hover: #745472;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --bad: #ef4444;
+  --info: #60a5fa;
+  --ref: #c084fc;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fafafa;
+    --bg-elev: #ffffff;
+    --bg-card: #ffffff;
+    --border: #e5e7eb;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #8D6A8A;
+    --accent-soft: #8D6A8A22;
+    --accent-deep: #50384E;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 32px 24px 96px; }
+.back {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.back:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+article h1 { font-size: 32px; line-height: 1.2; letter-spacing: -0.02em; margin: 24px 0 16px; }
+article h2 { font-size: 22px; letter-spacing: -0.01em; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+article h3 { font-size: 17px; margin: 28px 0 10px; color: var(--text); }
+article h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 24px 0 8px; }
+
+article p { margin: 12px 0; }
+article blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  border-radius: 0 8px 8px 0;
+}
+article blockquote p { margin: 0; }
+article ul, article ol { padding-left: 24px; margin: 12px 0; }
+article li { margin: 6px 0; }
+article hr { border: 0; height: 1px; background: var(--border); margin: 32px 0; }
+article code {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+article pre {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+article pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+article table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 14px;
+}
+article thead { background: var(--bg-elev); }
+article th, article td {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+article th { font-weight: 600; color: var(--muted); }
+article img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+article strong { color: var(--text); }
+article input[type=checkbox] { accent-color: var(--accent); margin-right: 6px; }
+
+.meta-foot {
+  margin-top: 56px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.meta-foot code { background: var(--bg-elev); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← back to hub</a>
+<article id="content"></article>
+<div class="meta-foot">
+  Source: <code>docs/stores/ChromeWebStore/01-prerequisites/README.md</code> · rendered via marked.js CDN
+</div>
+</div>
+<script type="text/markdown" id="md">
+# 01 · Prerequisites
+
+> **Status:** ✅ done — eklenti zaten Store'da yayında, yeni versiyon için tekrar yapılması gerekmez.
+
+**Duration:** İlk kez yapılıyorsa ~15 dk. Mevcut yayında olan eklenti için **atla**.
+**Output:** Aktif Chrome Web Store Developer hesabı + 2FA + working unpacked install.
+
+---
+
+## Chrome Web Store Developer hesabı
+
+> Bu eklenti zaten yayında olduğundan bu adımı atlayabilirsin. Aşağıdaki adımlar, sıfırdan kuran biri için referans.
+
+1. https://chrome.google.com/webstore/devconsole adresine git
+2. Aktif bir Google hesabıyla giriş yap
+3. **One-time $5 registration fee** öde (kredi kartı + Google Pay)
+4. Geliştirici adını seç ("nsozturk" zaten kayıtlı olmalı)
+
+## 2-Step Verification
+
+Chrome Web Store, hesabında 2FA aktif olmasını **zorunlu** tutuyor. Eğer kapalıysa:
+
+1. https://myaccount.google.com/security → **2-Step Verification** → Turn on
+2. Authenticator app (Google Authenticator / 1Password) ile setup et
+3. Backup codes'ları güvenli bir yere kaydet
+
+## Yerel test ortamı
+
+Yeni versiyonu yüklemeden önce **mutlaka** locally test et:
+
+```bash
+cd /Users/ns0bj/Development/Fun/stitch-design/stitch-export
+
+# Syntax check
+node -c background.js && node -c content.js && node -c popup/popup.js
+
+# Manifest validasyonu
+cat manifest.json | python3 -m json.tool
+```
+
+Ardından Chrome'da:
+
+1. `chrome://extensions/` aç
+2. Sağ üstte **Developer mode** toggle'ını aç
+3. **Load unpacked** → `/Users/ns0bj/Development/Fun/stitch-design/stitch-export` klasörünü seç
+4. Eklenti yüklendi, console'u `Inspect views: service worker` ile aç
+5. `[Stitch Export] Extension installed` log'u görünmeli
+
+### Smoke test checklist
+
+- [ ] Popup açılıyor (toolbar icon'a tık)
+- [ ] Yeni `Export All Projects (NN)` label'ı görünüyor (cached count varsa)
+- [ ] Stitch dashboard'da badge: `NN` (sayı)
+- [ ] Stitch proje sayfasında badge: `EXP`
+- [ ] Batch export çalışıyor, ~30 sn içinde ZIP iniyor
+- [ ] İndirilen ZIP içinde `screens/`, `history/`, `chat.json` var
+- [ ] Tek proje export'u (popup'tan **Export Conversation**) çalışıyor
+- [ ] Context menu (sağ tık) → "Export Stitch Conversation" çalışıyor
+- [ ] Service worker console'da hata yok
+
+Eğer testlerden biri başarısız olursa **02'ye geçme**, önce burada düzelt.
+
+---
+
+## Sıradaki adım
+
+✅ Hazırsa: [02 · Package Prep](../02-package-prep/index.html)
+
+## Screenshots
+
+`screenshots/` klasörü bu fazda boş — gerekirse Developer Dashboard giriş ekranını yakala.
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const raw = document.getElementById('md').textContent;
+marked.setOptions({ gfm: true, breaks: false });
+document.getElementById('content').innerHTML = marked.parse(raw);
+// Rewrite <a href="something.md"> → ".html" / "index.html" so links between
+// docs continue to work after the static render.
+document.querySelectorAll('article a[href$=".md"]').forEach((a) => {
+  const h = a.getAttribute('href');
+  if (h.endsWith('README.md')) {
+    a.setAttribute('href', h.replace(/README\.md$/, 'index.html'));
+  } else {
+    a.setAttribute('href', h.replace(/\.md$/, '.html'));
+  }
+});
+// GitHub-style task list rendering for "- [ ]" / "- [x]" items
+document.querySelectorAll('article li').forEach((li) => {
+  const txt = li.firstChild;
+  if (txt && txt.nodeType === 3) {
+    const m = txt.nodeValue.match(/^\s*\[( |x|X)\]\s+(.*)/);
+    if (m) {
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.disabled = true; box.checked = m[1].toLowerCase() === 'x';
+      txt.nodeValue = ' ' + m[2];
+      li.insertBefore(box, txt);
+      li.style.listStyleType = 'none';
+      li.style.marginLeft = '-20px';
+    }
+  }
+});
+</script>
+</body>
+</html>

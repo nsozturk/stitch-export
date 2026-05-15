@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>03 · Developer Dashboard · Stitch Export</title>
+<style>
+:root {
+  --bg: #0b0c10;
+  --bg-elev: #15171f;
+  --bg-card: #1c1f2a;
+  --border: #2a2e3d;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #8D6A8A;
+  --accent-soft: #8D6A8A33;
+  --accent-deep: #50384E;
+  --accent-hover: #745472;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --bad: #ef4444;
+  --info: #60a5fa;
+  --ref: #c084fc;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fafafa;
+    --bg-elev: #ffffff;
+    --bg-card: #ffffff;
+    --border: #e5e7eb;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #8D6A8A;
+    --accent-soft: #8D6A8A22;
+    --accent-deep: #50384E;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 32px 24px 96px; }
+.back {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.back:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+article h1 { font-size: 32px; line-height: 1.2; letter-spacing: -0.02em; margin: 24px 0 16px; }
+article h2 { font-size: 22px; letter-spacing: -0.01em; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+article h3 { font-size: 17px; margin: 28px 0 10px; color: var(--text); }
+article h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 24px 0 8px; }
+
+article p { margin: 12px 0; }
+article blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  border-radius: 0 8px 8px 0;
+}
+article blockquote p { margin: 0; }
+article ul, article ol { padding-left: 24px; margin: 12px 0; }
+article li { margin: 6px 0; }
+article hr { border: 0; height: 1px; background: var(--border); margin: 32px 0; }
+article code {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+article pre {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+article pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+article table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 14px;
+}
+article thead { background: var(--bg-elev); }
+article th, article td {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+article th { font-weight: 600; color: var(--muted); }
+article img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+article strong { color: var(--text); }
+article input[type=checkbox] { accent-color: var(--accent); margin-right: 6px; }
+
+.meta-foot {
+  margin-top: 56px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.meta-foot code { background: var(--bg-elev); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← back to hub</a>
+<article id="content"></article>
+<div class="meta-foot">
+  Source: <code>docs/stores/ChromeWebStore/03-developer-dashboard/README.md</code> · rendered via marked.js CDN
+</div>
+</div>
+<script type="text/markdown" id="md">
+# 03 · Developer Dashboard
+
+> **Status:** ⏳ todo
+
+**Duration:** ~5 dk (manifest validasyonu hızlıysa)
+**Pre-req:** Faz 02 — `/tmp/stitch-export-1.2.0.zip` hazır
+**Output:** Yeni package Dashboard'a yüklendi, sürüm doğrulandı.
+
+---
+
+## 1. Dashboard'a giriş
+
+1. Tarayıcıda aç: **https://chrome.google.com/webstore/devconsole**
+2. Stitch Export'u yöneten Google hesabıyla giriş yap
+3. 2FA kodunu gir
+
+Eklentilerin listelendiği dashboard'a gelirsin.
+
+> **Screenshot capture noktası**: dashboard'ın "Items" liste ekranı → `screenshots/01-dashboard-list.png`
+
+## 2. Mevcut "Stitch Export" item'ını seç
+
+Liste içinden **Stitch Export** kartına tıkla. Eğer çok eklentin varsa üst arama kutusuna yaz.
+
+İçeri girdiğinde sol panel:
+
+- Store listing
+- Privacy practices
+- **Package** ← şimdi buradayız
+- Distribution
+- Asia Pacific / Europe / vb. region settings
+- Analytics
+- Permissions
+
+## 3. Package upload
+
+1. Sol menüden **Package** sekmesine git
+2. **Upload new package** butonuna bas
+3. File picker → `/tmp/stitch-export-1.2.0.zip` seç
+4. Yüklenmeyi bekle (10-30 sn)
+
+> **Screenshot capture noktası**: Upload başarılı olduktan sonraki Package sekmesi → `screenshots/02-package-uploaded.png`
+
+## 4. Validasyon hataları
+
+Upload sonrası Chrome şu kontrolleri yapar:
+
+| Hata | Sebep | Çözüm |
+|---|---|---|
+| "Version must be greater than X" | Manifest version yayındakinden küçük/eşit | `manifest.json`'da `"version"` artır, ZIP'i yeniden oluştur |
+| "Manifest version 3 required" | MV2 manifest | `"manifest_version": 3` (zaten ✅) |
+| "Could not parse manifest" | JSON sözdizimi hatası | `python3 -m json.tool < manifest.json` ile kontrol |
+| "Disallowed permission: X" | Yasak permission istenmiş | Permission'ı kaldır veya alternative ara |
+| "Unrecognized manifest key: X" | Geçersiz / typo manifest key | Schema'ya bak |
+| "Package too large" | ZIP > 100 MB | Asset'leri compress, asıl dosya boyutunu küçült |
+
+Hata varsa **02'ye dön**, düzelt, yeniden ZIP'le.
+
+## 5. Otomatik permission değerlendirmesi
+
+Chrome upload sırasında manifest permissions'ları okur ve "risk level" belirler.
+
+**Stitch Export'un permissions risk değerlendirmesi:**
+
+| Permission | Risk | Reviewer dikkat eder |
+|---|---|---|
+| `activeTab` | 🟢 low | otomatik onay |
+| `scripting` | 🟢 low | otomatik onay |
+| `contextMenus` | 🟢 low | otomatik onay |
+| `downloads` | 🟢 low | otomatik onay |
+| `tabs` | 🟡 **moderate** | gerekçe ister (faz 06) |
+| `host_permissions` (4 host) | 🟡 moderate | tüm host'lar Google domainleri — açıkla |
+
+Hangi izinlerin "moderate" işaretlendiğini Package upload ekranında göreceksin. Bunların gerekçesini **Privacy practices** (faz 06) sekmesinde dolduracağız.
+
+## 6. Henüz submit'leme
+
+Şu an item "**Draft**" durumunda. Submit etmeden önce:
+
+- ✅ Faz 04 — Store listing güncelle (description, what's new)
+- ✅ Faz 05 — Screenshot ve iconları yenile
+- ✅ Faz 06 — Privacy practices doldurulmuş
+
+Submit butonuna basmak için **Faz 07** beklemek lazım.
+
+## Yanlışlık halinde rollback
+
+Eğer yanlış ZIP yüklediysen:
+
+1. Aynı Package ekranından **Upload new package** ile doğru ZIP'i tekrar yükle (eski upload override edilir).
+2. Henüz submit etmediğin için Store'da değişiklik görünmez.
+
+Eğer **submit ettikten sonra** ret yersin veya rollback istersen:
+
+1. Dashboard → Distribution → Visibility → "**Unpublished**"
+2. Eski ZIP'i bul (yerel arşivinde tutmadıysan kayıp)
+3. Yeni versiyon olarak tekrar yükle
+
+> **İpucu**: Her yayınlanan ZIP'i `releases/stitch-export-X.Y.Z.zip` olarak yerel git'e arşivle.
+
+---
+
+## Sıradaki adım
+
+✅ Hazırsa: [04 · Store Listing](../04-store-listing/index.html)
+
+## Screenshots
+
+- `screenshots/01-dashboard-list.png` — dashboard'da Items list
+- `screenshots/02-package-uploaded.png` — başarılı upload sonrası Package sekmesi
+- `screenshots/03-permission-review.png` — moderate permission uyarısı (eğer çıkarsa)
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const raw = document.getElementById('md').textContent;
+marked.setOptions({ gfm: true, breaks: false });
+document.getElementById('content').innerHTML = marked.parse(raw);
+// Rewrite <a href="something.md"> → ".html" / "index.html" so links between
+// docs continue to work after the static render.
+document.querySelectorAll('article a[href$=".md"]').forEach((a) => {
+  const h = a.getAttribute('href');
+  if (h.endsWith('README.md')) {
+    a.setAttribute('href', h.replace(/README\.md$/, 'index.html'));
+  } else {
+    a.setAttribute('href', h.replace(/\.md$/, '.html'));
+  }
+});
+// GitHub-style task list rendering for "- [ ]" / "- [x]" items
+document.querySelectorAll('article li').forEach((li) => {
+  const txt = li.firstChild;
+  if (txt && txt.nodeType === 3) {
+    const m = txt.nodeValue.match(/^\s*\[( |x|X)\]\s+(.*)/);
+    if (m) {
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.disabled = true; box.checked = m[1].toLowerCase() === 'x';
+      txt.nodeValue = ' ' + m[2];
+      li.insertBefore(box, txt);
+      li.style.listStyleType = 'none';
+      li.style.marginLeft = '-20px';
+    }
+  }
+});
+</script>
+</body>
+</html>

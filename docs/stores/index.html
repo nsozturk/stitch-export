@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stitch Export · Store Launch Hub</title>
+<style>
+  :root {
+    --bg: #0b0c10;
+    --bg-elev: #15171f;
+    --bg-card: #1c1f2a;
+    --border: #2a2e3d;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --accent: #8D6A8A;
+    --accent-soft: #8D6A8A33;
+    --accent-deep: #50384E;
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #ef4444;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fafafa;
+      --bg-elev: #ffffff;
+      --bg-card: #ffffff;
+      --border: #e5e7eb;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #8D6A8A;
+      --accent-soft: #8D6A8A22;
+      --accent-deep: #50384E;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 56px 24px 96px; }
+  header { margin-bottom: 32px; }
+  header .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  h1 {
+    margin: 6px 0 8px;
+    font-size: 36px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+  h1 .dot { color: var(--accent); }
+  header p.lede {
+    margin: 0;
+    color: var(--muted);
+    font-size: 17px;
+    max-width: 64ch;
+  }
+  .stores { display: grid; gap: 14px; margin-top: 36px; }
+  .store-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text);
+    transition: all 0.18s ease;
+  }
+  .store-card:hover {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--accent-soft) 100%);
+    text-decoration: none;
+  }
+  .store-card .badge-circle {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 18px;
+    flex-shrink: 0;
+  }
+  .store-card .body { flex: 1; }
+  .store-card .body strong { display: block; font-size: 16px; margin-bottom: 2px; }
+  .store-card .body p { margin: 0; color: var(--muted); font-size: 13px; }
+  .store-card .arrow {
+    color: var(--muted);
+    font-size: 18px;
+    transition: transform 0.18s ease, color 0.18s ease;
+  }
+  .store-card:hover .arrow { color: var(--accent); transform: translateX(4px); }
+  footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Stitch Export</div>
+  <h1>Store Launch Hub<span class="dot">.</span></h1>
+  <p class="lede">
+    Stitch Export Chrome eklentisinin yayın merkezi. Her store için ayrı bir
+    yayın yol haritası. Şu an Chrome Web Store v1.2.0 hazırlığı sürüyor.
+  </p>
+</header>
+
+<div class="stores">
+
+  <a class="store-card" href="ChromeWebStore/index.html">
+    <div class="badge-circle">CWS</div>
+    <div class="body">
+      <strong>Chrome Web Store</strong>
+      <p>v1.2.0 yayın rehberi — 8 fazlı checklist, screenshot odaklı</p>
+    </div>
+    <div class="arrow">→</div>
+  </a>
+
+</div>
+
+<footer>
+  <p>
+    Bu hub'ı offline aç: macOS Finder'da <code>open index.html</code>. Tüm
+    içerik <code>.md</code> dosyalarından <code>marked.js</code> ile render
+    ediliyor. Source: <code>docs/stores/</code>.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>

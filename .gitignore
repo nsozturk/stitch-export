@@ -2,3 +2,25 @@
 node_modules/
 dist/
 *.zip
+
+# Build / package artifacts
+package.json
+package-lock.json
+releases/
+
+# Scratch / debug helpers (regeneratable, not part of the source)
+analyze_parsed.js
+dNS8Mc_inner.json
+dNS8Mc_parsed.json
+dNS8Mc_raw.txt
+fix_*.js
+parse_dNS8Mc*.js
+test-extractor.js
+update_*.js
+debug-helper.js
+
+# Puppeteer screenshot temp
+popup/_capture.html
+
+# tmp scratch (project-local convention)
+tmp/

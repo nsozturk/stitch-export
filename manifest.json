@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Stitch Export",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "nsozturk <telepenu@gmail.com>",
   "description": "Export Stitch conversations in LLM-compatible formats (Claude Code, OpenAI ChatGPT)",
   "permissions": [
@@ -13,7 +13,9 @@
   ],
   "host_permissions": [
     "https://stitch.withgoogle.com/*",
-    "https://*.appspot.com/*"
+    "https://*.appspot.com/*",
+    "https://contribution.usercontent.google.com/*",
+    "https://lh3.googleusercontent.com/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -42,17 +44,6 @@
       ],
       "all_frames": true,
       "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "debug-helper.js"
-      ],
-      "matches": [
-        "https://stitch.withgoogle.com/*",
-        "https://*.appspot.com/*"
-      ]
     }
   ],
   "icons": {

@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>02 · Package Prep · Stitch Export</title>
+<style>
+:root {
+  --bg: #0b0c10;
+  --bg-elev: #15171f;
+  --bg-card: #1c1f2a;
+  --border: #2a2e3d;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #8D6A8A;
+  --accent-soft: #8D6A8A33;
+  --accent-deep: #50384E;
+  --accent-hover: #745472;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --bad: #ef4444;
+  --info: #60a5fa;
+  --ref: #c084fc;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fafafa;
+    --bg-elev: #ffffff;
+    --bg-card: #ffffff;
+    --border: #e5e7eb;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #8D6A8A;
+    --accent-soft: #8D6A8A22;
+    --accent-deep: #50384E;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 32px 24px 96px; }
+.back {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.back:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+article h1 { font-size: 32px; line-height: 1.2; letter-spacing: -0.02em; margin: 24px 0 16px; }
+article h2 { font-size: 22px; letter-spacing: -0.01em; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+article h3 { font-size: 17px; margin: 28px 0 10px; color: var(--text); }
+article h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 24px 0 8px; }
+
+article p { margin: 12px 0; }
+article blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  border-radius: 0 8px 8px 0;
+}
+article blockquote p { margin: 0; }
+article ul, article ol { padding-left: 24px; margin: 12px 0; }
+article li { margin: 6px 0; }
+article hr { border: 0; height: 1px; background: var(--border); margin: 32px 0; }
+article code {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+article pre {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+article pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+article table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 14px;
+}
+article thead { background: var(--bg-elev); }
+article th, article td {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+article th { font-weight: 600; color: var(--muted); }
+article img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+article strong { color: var(--text); }
+article input[type=checkbox] { accent-color: var(--accent); margin-right: 6px; }
+
+.meta-foot {
+  margin-top: 56px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.meta-foot code { background: var(--bg-elev); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← back to hub</a>
+<article id="content"></article>
+<div class="meta-foot">
+  Source: <code>docs/stores/ChromeWebStore/02-package-prep/README.md</code> · rendered via marked.js CDN
+</div>
+</div>
+<script type="text/markdown" id="md">
+# 02 · Package Prep
+
+> **Status:** ⏳ todo
+
+**Duration:** ~10 dk
+**Pre-req:** Faz 01 smoke test'leri ✅
+**Output:** `stitch-export-1.2.0.zip` — yalnızca prod dosyaları içeren temiz Store ZIP.
+
+---
+
+## 1. Manifest version bump
+
+`manifest.json`'da `"version"` alanı bir önceki Store sürümünden büyük olmalı.
+
+```json
+{
+  "version": "1.2.0",
+  ...
+}
+```
+
+> v1.2.0 zaten bump'lı. Eğer ileride 1.2.1 vs. çıkacaksa burayı güncelle.
+
+**Geçerli sürüm artış kuralları:**
+- `1.1.0` → `1.2.0` ✅
+- `1.1.0` → `1.1.1` ✅
+- `1.1.0` → `1.0.9` ❌ (Store reddeder)
+- `1.1.0` → `1.1.0` ❌ (aynı sürüm reddedilir)
+
+## 2. ZIP'e GİRMEYECEK dosyalar
+
+Bunlar yerel debug/script kalıntısı — Store ZIP'inde olmamalı:
+
+```
+.git/                       ← versiyon kontrolü
+.DS_Store                   ← macOS metadata
+node_modules/               ← varsa
+dist/                       ← varsa
+*.zip                       ← önceki paketler
+screenshots/                ← marketing materyalleri (Store ayrı upload)
+docs/                       ← bu dökümantasyon klasörü
+PUBLISH.md                  ← yayın notu
+BATCH_EXPORT_IMPLEMENTATION.md  ← initial plan
+analyze_parsed.js
+dNS8Mc_inner.json
+dNS8Mc_parsed.json
+dNS8Mc_raw.txt
+fix_cancel.js
+fix_cancel_fetch.js
+fix_debug_btn.js
+fix_debug_btn_not_on_stitch.js
+fix_popup_race.js
+parse_dNS8Mc.js
+parse_dNS8Mc_v2.js
+test-extractor.js
+update_api.js
+update_bg_cancel.js
+update_bg_debug.js
+update_clicker.js
+update_debug_btn.js
+update_popup.js
+update_popup_css_js.js
+update_popup_html.js
+update_wait.js
+```
+
+> **`debug-helper.js`**: manifest'te `web_accessible_resources` olarak referans veriliyor ama prod'da kullanılmıyor. **İki seçenek**:
+> - **A** — Manifest'ten `web_accessible_resources` bloğunu sil, `debug-helper.js`'i ZIP'e dahil etme. **Önerilen**.
+> - **B** — Dahil et, manifest'i değiştirme. Reviewer sorabilir ama ret değildir.
+
+## 3. Prod ZIP oluşturma
+
+```bash
+cd /Users/ns0bj/Development/Fun/stitch-design/stitch-export
+
+# Temiz geçici klasör
+rm -rf /tmp/stitch-export-1.2.0
+mkdir -p /tmp/stitch-export-1.2.0
+
+# Sadece prod dosyalarını kopyala
+rsync -av \
+  --exclude='.git*' \
+  --exclude='.DS_Store' \
+  --exclude='node_modules/' \
+  --exclude='dist/' \
+  --exclude='screenshots/' \
+  --exclude='docs/' \
+  --exclude='analyze_parsed.js' \
+  --exclude='dNS8Mc_*' \
+  --exclude='fix_*.js' \
+  --exclude='parse_dNS8Mc*.js' \
+  --exclude='test-extractor.js' \
+  --exclude='update_*.js' \
+  --exclude='*.zip' \
+  --exclude='PUBLISH.md' \
+  --exclude='BATCH_EXPORT_IMPLEMENTATION.md' \
+  --exclude='debug-helper.js' \
+  ./ /tmp/stitch-export-1.2.0/
+
+# Klasör içeriğini gözden geçir
+ls -la /tmp/stitch-export-1.2.0/
+tree /tmp/stitch-export-1.2.0/ 2>/dev/null || find /tmp/stitch-export-1.2.0/ -type f
+
+# ZIP'le (.* dosyaları hariç tut)
+cd /tmp/stitch-export-1.2.0
+zip -r /tmp/stitch-export-1.2.0.zip . -x ".*"
+ls -lh /tmp/stitch-export-1.2.0.zip
+```
+
+## 4. Beklenen final ZIP içeriği
+
+```
+manifest.json                  (version: 1.2.0)
+background.js                  (~37 KB — pure-API batch export + badge)
+content.js                     (~22 KB)
+LICENSE
+README.md
+popup/
+  popup.html                   (debug & copy buttons commented out)
+  popup.css                    (theme + spinner keyframes)
+  popup.js                     (project count + label updater)
+utils/
+  extractor.js
+  formatters.js
+  downloader.js
+icons/
+  icon.svg                     (yeni master)
+  icon.png
+  icon16.png
+  icon24.png
+  icon32.png
+  icon64.png
+  icon128.png
+  icon256.png
+libs/
+  jszip.min.js
+```
+
+Hedef boyut: **< 200 KB**.
+
+## 5. Manifest'ten `web_accessible_resources` kaldırma (opsiyonel ama önerilen)
+
+Eğer A yolunu seçtiysen, ZIP'lemeden önce `manifest.json`'dan şu bloğu sil:
+
+```json
+"web_accessible_resources": [
+  {
+    "resources": ["debug-helper.js"],
+    "matches": [
+      "https://stitch.withgoogle.com/*",
+      "https://*.appspot.com/*"
+    ]
+  }
+],
+```
+
+> **Not**: bu silinmeden önce eklentinin yerel test'inde sorun çıkmadığından emin ol — yukarıdaki smoke test'i tekrar yap.
+
+## 6. Final doğrulama
+
+```bash
+# ZIP'i geçici bir yere unzip et ve yerel test et
+mkdir -p /tmp/stitch-1.2.0-verify
+cd /tmp/stitch-1.2.0-verify
+unzip /tmp/stitch-export-1.2.0.zip
+
+# Chrome'da: chrome://extensions/ → Load unpacked → /tmp/stitch-1.2.0-verify
+# Smoke test'i tekrar koş. Bu kez ZIP içeriğiyle çalışıyor.
+```
+
+---
+
+## Sıradaki adım
+
+✅ Hazırsa: [03 · Developer Dashboard](../03-developer-dashboard/index.html)
+
+## Screenshots
+
+- `screenshots/zip-contents.png` — final ZIP içeriğinin Finder/Terminal görüntüsü
+- `screenshots/verify-load.png` — temizlenmiş klasörden unpacked load sonrası popup
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const raw = document.getElementById('md').textContent;
+marked.setOptions({ gfm: true, breaks: false });
+document.getElementById('content').innerHTML = marked.parse(raw);
+// Rewrite <a href="something.md"> → ".html" / "index.html" so links between
+// docs continue to work after the static render.
+document.querySelectorAll('article a[href$=".md"]').forEach((a) => {
+  const h = a.getAttribute('href');
+  if (h.endsWith('README.md')) {
+    a.setAttribute('href', h.replace(/README\.md$/, 'index.html'));
+  } else {
+    a.setAttribute('href', h.replace(/\.md$/, '.html'));
+  }
+});
+// GitHub-style task list rendering for "- [ ]" / "- [x]" items
+document.querySelectorAll('article li').forEach((li) => {
+  const txt = li.firstChild;
+  if (txt && txt.nodeType === 3) {
+    const m = txt.nodeValue.match(/^\s*\[( |x|X)\]\s+(.*)/);
+    if (m) {
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.disabled = true; box.checked = m[1].toLowerCase() === 'x';
+      txt.nodeValue = ' ' + m[2];
+      li.insertBefore(box, txt);
+      li.style.listStyleType = 'none';
+      li.style.marginLeft = '-20px';
+    }
+  }
+});
+</script>
+</body>
+</html>

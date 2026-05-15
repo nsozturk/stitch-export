@@ -46,12 +46,52 @@ const elements = {
   batchProgressCount: document.getElementById('batchProgressCount')
 };
 
+// Update the "Export All Projects" button labels with the cached project count.
+// If the count isn't cached, we show a "counting…" state (loading spinner +
+// hint text) — but only after 300ms so a fast cached response doesn't flicker.
+async function updateExportAllLabel() {
+  const labels = document.querySelectorAll('.export-all-label');
+  const hints = document.querySelectorAll('.export-all-hint');
+
+  const showLoading = () => {
+    labels.forEach(el => {
+      el.textContent = 'Export All Projects';
+      el.classList.add('is-loading');
+    });
+    hints.forEach(el => el.classList.remove('hidden'));
+  };
+  const hideLoading = () => {
+    labels.forEach(el => el.classList.remove('is-loading'));
+    hints.forEach(el => el.classList.add('hidden'));
+  };
+
+  const slowTimer = setTimeout(showLoading, 300);
+
+  try {
+    const res = await chrome.runtime.sendMessage({ action: 'getProjectCount' });
+    clearTimeout(slowTimer);
+    hideLoading();
+    if (res && typeof res.count === 'number') {
+      labels.forEach(el => { el.textContent = `Export All Projects (${res.count})`; });
+    } else {
+      labels.forEach(el => { el.textContent = 'Export All Projects'; });
+    }
+  } catch (e) {
+    clearTimeout(slowTimer);
+    hideLoading();
+    labels.forEach(el => { el.textContent = 'Export All Projects'; });
+  }
+}
+
 // Initialize popup
 async function initialize() {
   console.log('[Stitch Export] Initializing popup...');
 
   // Setup event listeners first so they always work
   setupEventListeners();
+
+  // Fire-and-forget: update the Export All label with the project count
+  updateExportAllLabel();
 
   // Listen for batch progress messages from background
   chrome.runtime.onMessage.addListener((request) => {
@@ -433,18 +473,33 @@ async function handleCopyToClipboard() {
 }
 
 // Function to inject and execute in page context (self-contained)
+// IMPORTANT: This must be SYNCHRONOUS — chrome.scripting.executeScript
+// cannot properly await async functions. The async extraction (API + sidebar)
+// is handled via message-passing in content.js instead.
 function extractAndFormat(format, options = {}) {
   try {
     // Check if StitchExtractor is available (content script loaded)
-    if (typeof StitchExtractor !== 'undefined') {
-      const conversationData = StitchExtractor.extractConversation();
+    // Only use the synchronous legacy extraction here
+    if (typeof StitchExtractor !== 'undefined' && typeof StitchExtractor.extractMessagesLegacy === 'function') {
+      const projectId = StitchExtractor.extractProjectId();
+      const projectTitle = StitchExtractor.extractProjectTitle();
+      const messages = StitchExtractor.extractMessagesLegacy();
 
-      if (!conversationData) {
+      if (!messages || messages.length === 0) {
         return {
           success: false,
-          error: 'No conversation data found'
+          error: 'No conversation data found (sync fallback). Try reloading the page.'
         };
       }
+
+      const conversationData = {
+        projectId,
+        projectTitle,
+        sourceUrl: window.location.href,
+        timestamp: new Date().toISOString(),
+        messages
+      };
+
 
       const formattedData = StitchFormatters.format(conversationData, format, options);
       const filename = StitchFormatters.generateFilename(conversationData, format);

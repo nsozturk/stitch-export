@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>04 · Store Listing · Stitch Export</title>
+<style>
+:root {
+  --bg: #0b0c10;
+  --bg-elev: #15171f;
+  --bg-card: #1c1f2a;
+  --border: #2a2e3d;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #8D6A8A;
+  --accent-soft: #8D6A8A33;
+  --accent-deep: #50384E;
+  --accent-hover: #745472;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --bad: #ef4444;
+  --info: #60a5fa;
+  --ref: #c084fc;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fafafa;
+    --bg-elev: #ffffff;
+    --bg-card: #ffffff;
+    --border: #e5e7eb;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #8D6A8A;
+    --accent-soft: #8D6A8A22;
+    --accent-deep: #50384E;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 32px 24px 96px; }
+.back {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.back:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+article h1 { font-size: 32px; line-height: 1.2; letter-spacing: -0.02em; margin: 24px 0 16px; }
+article h2 { font-size: 22px; letter-spacing: -0.01em; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+article h3 { font-size: 17px; margin: 28px 0 10px; color: var(--text); }
+article h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 24px 0 8px; }
+
+article p { margin: 12px 0; }
+article blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  border-radius: 0 8px 8px 0;
+}
+article blockquote p { margin: 0; }
+article ul, article ol { padding-left: 24px; margin: 12px 0; }
+article li { margin: 6px 0; }
+article hr { border: 0; height: 1px; background: var(--border); margin: 32px 0; }
+article code {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+article pre {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+article pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+article table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 14px;
+}
+article thead { background: var(--bg-elev); }
+article th, article td {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+article th { font-weight: 600; color: var(--muted); }
+article img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+article strong { color: var(--text); }
+article input[type=checkbox] { accent-color: var(--accent); margin-right: 6px; }
+
+.meta-foot {
+  margin-top: 56px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.meta-foot code { background: var(--bg-elev); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← back to hub</a>
+<article id="content"></article>
+<div class="meta-foot">
+  Source: <code>docs/stores/ChromeWebStore/04-store-listing/README.md</code> · rendered via marked.js CDN
+</div>
+</div>
+<script type="text/markdown" id="md">
+# 04 · Store Listing
+
+> **Status:** ⏳ todo
+
+**Duration:** ~30 dk (yazı + URL'ler + dil)
+**Pre-req:** Faz 03 — package upload başarılı
+**Output:** Store listing tüm metadata'lar dolduruldu, "What's new" v1.2.0 notu hazır.
+
+---
+
+## Canonical metadata
+
+Dashboard → **Store listing** sekmesine gir. Aşağıdaki alanları doldur.
+
+### Name (eklenti adı — 45 char max)
+
+```
+Stitch Export
+```
+
+> Önceki yayında zaten bu. Değişiklik yok.
+
+### Summary (kısa açıklama — 132 char max)
+
+```
+Export Stitch design conversations and projects to LLM-compatible formats (Claude Code, ChatGPT). Batch export all projects to ZIP.
+```
+
+> 130 char. Stitch'in Google Stitch design tool'u olduğunu ima etmiyor ama "Stitch design conversations" net.
+
+### Description (detaylı açıklama — 16,000 char max)
+
+```
+Stitch Export is a Chrome extension that exports your conversations and
+generated designs from stitch.withgoogle.com — Google's AI-powered UI
+design tool — to formats compatible with Claude Code, ChatGPT, and any
+LLM workflow.
+
+## What it does
+
+• Export single conversation — extract the chat history of the current
+  Stitch project as a structured JSON file. Supports Claude Code,
+  OpenAI ChatGPT, and a customizable role-mapping format.
+
+• Export all projects (batch) — with one click, archive every Stitch
+  project you've ever created into a single ZIP. Each project folder
+  contains:
+  - chat.json — full per-turn conversation with references to the
+    designs generated in each turn and the follow-up suggestion prompts
+  - screens/ — final HTML designs (current state)
+  - history/turn-NNN-{slug}/ — designs generated in each individual
+    conversation turn, preserving the full history
+
+• Icon badge — at a glance, see how many projects you have on Stitch
+  (badge on the toolbar icon) and a small "EXP" reminder when you're
+  on a project page that you can export it.
+
+## How it works
+
+The extension uses Stitch's own batch API endpoints to fetch project
+data, screen instances, and chat sessions. HTML files are downloaded
+directly from Google's content CDN. No screen scraping, no UI
+automation — the batch export of 70+ projects completes in about 30
+seconds.
+
+Your Stitch login session is used (via cookies) — the extension never
+sees or transmits your password. No external servers are contacted
+other than Google's own Stitch backend.
+
+## Use cases
+
+• Archive your Stitch design history before it's lost
+• Feed Stitch-generated designs as context to other LLMs
+• Compare different design iterations across conversation turns
+• Backup designs for offline reference
+
+## What's new in v1.2.0
+
+• Batch export now uses Stitch's API directly — 24× faster than v1.1.x
+• Rich chat export — every assistant turn now includes references to
+  the designs it generated and the follow-up suggestion prompts
+• New ZIP structure with screens/ (final state) + history/ (per-turn
+  designs) + chat.json (full metadata with file references)
+• Toolbar icon badge — project count on the list page, export
+  reminder on project pages
+• Refreshed icon set in the new purple/mauve theme
+
+## Privacy
+
+This extension:
+• Runs only on stitch.withgoogle.com and Google CDN domains
+• Uses your existing Stitch session — no separate authentication
+• Stores nothing remotely — exports are local downloads only
+• Collects no analytics, no telemetry, no usage tracking
+
+Source code: https://github.com/nsozturk/stitch-export
+Support: support via GitHub issues
+```
+
+### Category
+
+| Field | Value |
+|---|---|
+| **Primary category** | Developer Tools |
+| **Secondary category** | Productivity |
+
+### Language
+
+| Field | Value |
+|---|---|
+| **Default language** | English (US) |
+| **Additional languages (opsiyonel)** | Türkçe — eğer çevirmek istersen |
+
+> Türkçe çeviri opsiyonel. Mevcut yayın muhtemelen sadece İngilizce. Bunu değiştirme yapacaksan ekstra metadata seti gerekir, faz 07'den önce karar ver.
+
+### What's new (yeni sürüm notu — opsiyonel ama önerilen)
+
+Listing'in "What's new" alanı (eğer Dashboard'da görüyorsan; bazı listing template'lerinde yok). Eğer var:
+
+```
+v1.2.0
+• Batch export 24× faster — 70+ projects in 30 seconds (pure API)
+• Rich chat export — per-turn designs + follow-up suggestions
+• New ZIP layout: screens/ + history/turn-NNN/ + chat.json
+• Toolbar badge: project count on dashboard, EXP reminder on project pages
+• Refreshed icons + UI polish
+```
+
+### Support URL
+
+```
+https://github.com/nsozturk/stitch-export/issues
+```
+
+> **Zorunlu**. Privacy practices'i tamamlamak için bu URL'in canlı olması lazım.
+
+### Homepage URL (opsiyonel)
+
+```
+https://github.com/nsozturk/stitch-export
+```
+
+### Single purpose statement
+
+```
+Export Stitch design conversations and projects to LLM-compatible formats and ZIP archives.
+```
+
+---
+
+## Form doldururken dikkat
+
+- **Image alt text** — Description'da SVG/image referansı yok, ama eğer eklerssen alt text gerekir.
+- **Promo text** — Bazı listing template'lerinde "promotional text" alanı var; description'ın ilk 132 karakteri kullan.
+- **Listing freshness** — Description'ın v1.2.0 özelliklerini içermesi reviewer'ı hızlandırır.
+
+---
+
+## Sıradaki adım
+
+✅ Hazırsa: [05 · Icons & Screenshots](../05-icons-and-screenshots/index.html)
+
+## Screenshots
+
+- `screenshots/01-listing-form.png` — doldurulmuş Store listing formu
+- `screenshots/02-description-preview.png` — markdown render edilmiş açıklamanın önizleme görüntüsü
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const raw = document.getElementById('md').textContent;
+marked.setOptions({ gfm: true, breaks: false });
+document.getElementById('content').innerHTML = marked.parse(raw);
+// Rewrite <a href="something.md"> → ".html" / "index.html" so links between
+// docs continue to work after the static render.
+document.querySelectorAll('article a[href$=".md"]').forEach((a) => {
+  const h = a.getAttribute('href');
+  if (h.endsWith('README.md')) {
+    a.setAttribute('href', h.replace(/README\.md$/, 'index.html'));
+  } else {
+    a.setAttribute('href', h.replace(/\.md$/, '.html'));
+  }
+});
+// GitHub-style task list rendering for "- [ ]" / "- [x]" items
+document.querySelectorAll('article li').forEach((li) => {
+  const txt = li.firstChild;
+  if (txt && txt.nodeType === 3) {
+    const m = txt.nodeValue.match(/^\s*\[( |x|X)\]\s+(.*)/);
+    if (m) {
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.disabled = true; box.checked = m[1].toLowerCase() === 'x';
+      txt.nodeValue = ' ' + m[2];
+      li.insertBefore(box, txt);
+      li.style.listStyleType = 'none';
+      li.style.marginLeft = '-20px';
+    }
+  }
+});
+</script>
+</body>
+</html>

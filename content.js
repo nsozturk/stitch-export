@@ -26,14 +26,8 @@
   // Inject export button into Stitch UI
   function injectExportButton() {
     // Check if we're on a project page
-    if (!window.location.pathname.includes('/projects/')) {
-      return;
-    }
-
-    // Only inject where the Stitch chat UI is present
-    const hasChatUI = document.querySelector('[data-testid="chat-msg-list"], [data-testid="chat-header"]');
-    if (!hasChatUI) {
-      console.warn('[Stitch Export] Chat UI not detected in this frame, skipping injection');
+    if (!window.location.pathname.includes('/projects/') &&
+        !window.location.href.includes('/projects/')) {
       return;
     }
 
@@ -42,86 +36,163 @@
       return;
     }
 
-    // Create export button
-    exportButton = createExportButton();
+    // Try to find the top-right toolbar
+    const toolbar = findToolbar();
 
-    // Find a good place to inject the button
-    // User wants it next to the Share button
-    // The Share button is usually in a container like: <div class="flex items-center gap-2 md:gap-4">
-    // We look for the Share button specifically
-    const shareButton = findShareButton();
+    if (toolbar) {
+      exportButton = createExportButton();
 
-    if (shareButton) {
-      // Insert after the share button's parent div if it's wrapped, or directly after
-      // The user snippet shows Share button inside a div, inside the flex container
-      // We want to be a sibling of that div
-
-      // Try to find the container that holds the share button
-      const shareContainer = shareButton.closest('div');
-      if (shareContainer && shareContainer.parentElement && shareContainer.parentElement.classList.contains('flex')) {
-        shareContainer.parentElement.insertBefore(exportButton, shareContainer.nextSibling);
-        console.log('[Stitch Export] Button injected next to Share button');
-      } else {
-        // Fallback: just append to the same container as share button
-        shareButton.parentElement.appendChild(exportButton);
-        console.log('[Stitch Export] Button injected near Share button (fallback 1)');
-      }
-    } else {
-      // Fallback: find header and append
-      const header = document.querySelector('[data-testid="chat-header"] .flex.items-center.gap-2') ||
-        document.querySelector('[data-testid="chat-header"]');
-
-      if (header) {
-        header.appendChild(exportButton);
-        console.log('[Stitch Export] Button injected in header (fallback 2)');
-      } else {
-        // Ultimate fallback: fixed position
+      try {
+        // Strategy A: Insert right after Stitch's own Export button (same row)
+        const stitchExportBtn = findStitchExportButton(toolbar);
+        if (stitchExportBtn) {
+          stitchExportBtn.insertAdjacentElement('afterend', exportButton);
+          console.log('[Stitch Export] Button injected after Stitch Export button');
+        } else {
+          // Strategy B: Insert before Share wrapper
+          const shareWrapper = findShareButtonWrapper(toolbar);
+          if (shareWrapper && shareWrapper.parentElement) {
+            shareWrapper.insertAdjacentElement('beforebegin', exportButton);
+            console.log('[Stitch Export] Button injected before Share button');
+          } else {
+            // Strategy C: Append to the inner flex container
+            const flexContainer = toolbar.querySelector('.flex.items-center');
+            if (flexContainer) {
+              const profileBtn = flexContainer.querySelector('[aria-label="Account Menu"]')?.closest('.relative');
+              if (profileBtn) {
+                profileBtn.insertAdjacentElement('beforebegin', exportButton);
+              } else {
+                flexContainer.appendChild(exportButton);
+              }
+              console.log('[Stitch Export] Button injected in toolbar (fallback)');
+            } else {
+              toolbar.appendChild(exportButton);
+              console.log('[Stitch Export] Button appended to toolbar panel');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[Stitch Export] Button injection error, using fixed position:', err);
         document.body.appendChild(exportButton);
         exportButton.style.position = 'fixed';
-        exportButton.style.top = '20px';
-        exportButton.style.right = '20px';
+        exportButton.style.top = '16px';
+        exportButton.style.right = '200px';
         exportButton.style.zIndex = '10000';
-        console.log('[Stitch Export] Button injected to body (ultimate fallback)');
       }
+    } else {
+      // Toolbar not found yet — observe DOM for it
+      console.log('[Stitch Export] Toolbar not found, setting up observer...');
+      observeForToolbar();
     }
   }
 
-  // Find the Share button in the DOM
-  function findShareButton() {
-    // Look for button with "Share" text
-    const buttons = Array.from(document.querySelectorAll('button'));
-    return buttons.find(btn => btn.textContent.includes('Share'));
+  // Find the top-right toolbar panel
+  function findToolbar() {
+    // The toolbar is: div.react-flow__panel with classes containing "top" and "right"
+    const panels = document.querySelectorAll('.react-flow__panel');
+    for (const panel of panels) {
+      if (panel.classList.contains('top') && panel.classList.contains('right')) {
+        return panel;
+      }
+    }
+    // Also try by style
+    return document.querySelector('.react-flow__panel.top.right');
   }
 
-  // Create export button element
+  // Find the Share button wrapper in the toolbar
+  function findShareButtonWrapper(toolbar) {
+    const buttons = toolbar.querySelectorAll('button');
+    for (const btn of buttons) {
+      const text = btn.textContent.trim();
+      if (text === 'Share' || btn.querySelector('p')?.textContent?.trim() === 'Share') {
+        return btn.closest('[data-popup-open]') || btn;
+      }
+    }
+    return null;
+  }
+
+  // Find Stitch's own Export button in the toolbar
+  function findStitchExportButton(toolbar) {
+    const buttons = toolbar.querySelectorAll('button');
+    for (const btn of buttons) {
+      const text = btn.querySelector('p')?.textContent?.trim() || btn.textContent.trim();
+      if (text === 'Export' && btn.id !== 'stitch-export-chat-btn') {
+        return btn;
+      }
+    }
+    return null;
+  }
+
+  // Watch for the toolbar to appear (React renders async in iframe)
+  let _toolbarObserver = null;
+  function observeForToolbar() {
+    if (_toolbarObserver) return; // already watching
+
+    _toolbarObserver = new MutationObserver(() => {
+      const toolbar = findToolbar();
+      if (toolbar && !(exportButton && document.contains(exportButton))) {
+        _toolbarObserver.disconnect();
+        _toolbarObserver = null;
+        injectExportButton();
+      }
+    });
+
+    _toolbarObserver.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+
+    // Safety timeout: stop observing after 30s
+    setTimeout(() => {
+      if (_toolbarObserver) {
+        _toolbarObserver.disconnect();
+        _toolbarObserver = null;
+        console.log('[Stitch Export] Toolbar observer timed out');
+      }
+    }, 30000);
+  }
+
+  // Create export button element matching Stitch's native button style
   function createExportButton() {
-    // Wrapper div to match the Share button's wrapper if needed, 
-    // but the user snippet shows the button itself has the classes.
-    // We'll create the button directly with the requested classes.
-
     const button = document.createElement('button');
-    button.id = 'stitch-export-button';
+    button.id = 'stitch-export-chat-btn';
 
-    // Use the exact classes provided by the user
-    button.className = 'items-center justify-center gap-2 bg-clip-border duration-75 ease-out focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 bg-accent enabled:hover:opacity-80 font-heading hidden md:flex md:gap-[6px] px-3 py-1 h-[unset] rounded-md text-black';
+    // Match native Stitch button classes exactly
+    button.className = [
+      'items-center', 'justify-center', 'bg-clip-border',
+      'focus-visible:outline-2', 'focus-visible:outline-current', 'focus-visible:-outline-offset-2',
+      'border',
+      'enabled:hover:bg-state-hover', 'enabled:active:bg-state-pressed',
+      'backdrop-blur-glass', 'text-subtitle-md',
+      'bg-surface-container', 'backdrop-blur-glass',
+      'font-heading', 'flex', 'gap-[6px]',
+      'p-2', 'lg:px-4', 'lg:py-3', 'h-8', 'rounded-[20px]'
+    ].join(' ');
 
-    // Add margin to separate from Share button if needed (though parent gap usually handles it)
-    button.style.marginLeft = '8px';
-    button.style.backgroundColor = '#eef0f5'; // Approximate 'bg-accent' if not available, user said "preserve color" but gave classes. 
-    // If 'bg-accent' is a Tailwind class available in the app, it will work. 
-    // If not, we might need to force a color. The Share button usually has a light grey/blue tint.
-    // Let's assume the classes work because they are from the app. 
-    // But to be safe, let's set a background color that looks like the Share button just in case the class doesn't resolve in our context (though it should).
-    // Actually, better to trust the classes if we are injecting into the app.
+    button.tabIndex = 0;
+    button.style.transform = 'none';
 
+    // Mauve/purple accent — matches extension dialog theme
+    button.style.borderColor = '#8D6A8A';
+    button.style.color = '#C4A0C1';
+
+    // Download icon + text
     button.innerHTML = `
-      <span class="text-[#191919] mb-[1px]">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" fill="currentColor" viewBox="0 0 256 256">
-          <path d="M216,112v96a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V112A16,16,0,0,1,56,96H80a8,8,0,0,1,0,16H56v96H200V112H176a8,8,0,0,1,0-16h24A16,16,0,0,1,216,112ZM93.66,69.66,120,43.31V136a8,8,0,0,0,16,0V43.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,69.66Z"></path>
-        </svg>
-      </span>
-      <p class="font-heading text-sm font-medium leading-[1]">Export</p>
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9 12.15L5.625 8.775L6.6 7.8L8.325 9.525V3.375H9.675V9.525L11.4 7.8L12.375 8.775L9 12.15ZM4.05 14.625C3.675 14.625 3.356 14.494 3.094 14.231C2.831 13.969 2.7 13.65 2.7 13.275V11.025H4.05V13.275H13.95V11.025H15.3V13.275C15.3 13.65 15.169 13.969 14.906 14.231C14.644 14.494 14.325 14.625 13.95 14.625H4.05Z"/>
+      </svg>
+      <p class="hidden lg:inline font-heading text-sm font-medium leading-[1]" style="color: #C4A0C1;">Export Chat</p>
     `;
+
+    // Hover effects
+    button.addEventListener('mouseenter', () => {
+      button.style.backgroundColor = 'rgba(141, 106, 138, 0.15)';
+      button.style.borderColor = '#C4A0C1';
+    });
+    button.addEventListener('mouseleave', () => {
+      button.style.backgroundColor = '';
+      button.style.borderColor = '#8D6A8A';
+    });
 
     // Click handler
     button.addEventListener('click', handleExportClick);
@@ -129,10 +200,7 @@
     return button;
   }
 
-  // Find a good injection point in the Stitch UI - DEPRECATED/UNUSED in favor of findShareButton logic inside injectExportButton
-  function findInjectionPoint() {
-    return null;
-  }
+
 
   // Handle export button click
   function handleExportClick(e) {
@@ -259,7 +327,7 @@
   }
 
   // Execute export
-  function executeExport() {
+  async function executeExport() {
     const extractor = window.StitchExtractor;
     const formatters = window.StitchFormatters;
     const downloader = window.StitchDownloader;
@@ -281,8 +349,8 @@
         options.assistantRole = formatDialog.querySelector('#custom-assistant-role').value || 'assistant';
       }
 
-      // Extract conversation
-      const conversationData = extractor.extractConversation();
+      // Extract conversation (now async — supports API + sidebar clicking)
+      const conversationData = await extractor.extractConversation();
 
       if (!conversationData) {
         StitchDownloader.showErrorNotification('No conversation data found. Make sure you\'re on a Stitch project page with messages.');
@@ -419,15 +487,15 @@
       }
 
       #stitch-export-dialog .format-option:hover {
-        border-color: #4285F4;
-        background: #f0f7ff;
+        border-color: #8D6A8A;
+        background: #f5f0f5;
       }
 
       #stitch-export-dialog .format-option input[type="radio"] {
         margin-top: 2px;
         margin-right: 12px;
         cursor: pointer;
-        accent-color: #4285F4;
+        accent-color: #8D6A8A;
       }
 
       #stitch-export-dialog .format-info {
@@ -469,12 +537,12 @@
       }
 
       #stitch-export-dialog .btn-primary {
-        background: #4285F4;
+        background: #8D6A8A;
         color: white;
       }
 
       #stitch-export-dialog .btn-primary:hover {
-        background: #3367D6;
+        background: #745472;
       }
 
       #stitch-export-dialog .btn-secondary {
@@ -491,9 +559,9 @@
       #stitch-export-dialog .custom-settings {
         margin-top: 16px;
         padding: 16px;
-        background: #f8f9fa;
+        background: #16151A;
         border-radius: 8px;
-        border: 1px solid #e0e0e0;
+        border: 1px solid #50384E;
         flex-direction: column;
         gap: 12px;
         transition: opacity 0.3s ease;
@@ -506,23 +574,37 @@
       }
 
       #stitch-export-dialog .input-group label {
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 500;
-        color: #555;
+        color: #8D6A8A;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
       #stitch-export-dialog .input-group input {
-        padding: 8px 12px;
-        border: 1px solid #ddd;
+        padding: 10px 12px;
+        border: 1px solid #50384E;
         border-radius: 6px;
         font-size: 14px;
-        transition: border-color 0.2s;
+        color: #FFFFFF;
+        background: #1B1A20;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        font-family: inherit;
+      }
+
+      #stitch-export-dialog .input-group input::placeholder {
+        color: #50384E;
+        font-size: 13px;
+      }
+
+      #stitch-export-dialog .input-group input:hover {
+        border-color: #745472;
       }
 
       #stitch-export-dialog .input-group input:focus {
-        border-color: #4285F4;
+        border-color: #8D6A8A;
         outline: none;
-        box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+        box-shadow: 0 0 0 2px rgba(141, 106, 138, 0.2);
       }
     `;
 
@@ -539,42 +621,51 @@
       const downloader = window.StitchDownloader;
 
       if (!extractor || !formatters || !downloader) {
-        sendResponse({ success: false, error: 'Export libraries not loaded in this frame' });
-        return true;
+        // IMPORTANT: Do NOT call sendResponse here. If we respond with
+        // {success:false} from a frame that simply doesn't have the libs,
+        // the popup receives this "failure" response first and falls through
+        // to executeScript — while the iframe (which has the libs) is still
+        // running its async extraction in the background, causing zombie
+        // sidebar clicking. By returning false, we let the iframe be the
+        // sole responder.
+        console.log('[Stitch Export] Libraries not available in this frame, ignoring message');
+        return false;
       }
 
-      try {
-        // Extract conversation
-        const conversationData = extractor.extractConversation();
+      (async () => {
+        try {
+          // Extract conversation
+          const conversationData = await extractor.extractConversation();
 
-        if (!conversationData) {
-          sendResponse({
-            success: false,
-            error: 'No conversation data found. Make sure you\'re on a Stitch project page with messages.'
-          });
-          return true;
+          if (!conversationData) {
+            sendResponse({
+              success: false,
+              error: 'No conversation data found. Make sure you\'re on a Stitch project page with messages.'
+            });
+            return;
+          }
+
+          // Format the data
+          const formattedData = formatters.format(conversationData, request.format, request.options);
+
+          // Generate filename
+          const filename = formatters.generateFilename(conversationData, request.format);
+
+          // Download
+          const success = downloader.downloadJSON(formattedData, filename);
+
+          if (success) {
+            downloader.showSuccessNotification(filename);
+            sendResponse({ success: true, filename });
+          } else {
+            sendResponse({ success: false, error: 'Download failed' });
+          }
+
+        } catch (error) {
+          console.error('[Stitch Export] Export error:', error);
+          sendResponse({ success: false, error: error.message });
         }
-
-        // Format the data
-        const formattedData = formatters.format(conversationData, request.format, request.options);
-
-        // Generate filename
-        const filename = formatters.generateFilename(conversationData, request.format);
-
-        // Download
-        const success = downloader.downloadJSON(formattedData, filename);
-
-        if (success) {
-          downloader.showSuccessNotification(filename);
-          sendResponse({ success: true, filename });
-        } else {
-          sendResponse({ success: false, error: 'Download failed' });
-        }
-
-      } catch (error) {
-        console.error('[Stitch Export] Export error:', error);
-        sendResponse({ success: false, error: error.message });
-      }
+      })();
 
       return true; // Keep the message channel open for async response
     }

@@ -13,7 +13,7 @@
     <header>
       <div class="logo">
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="6" fill="#4285F4" />
+          <rect width="32" height="32" rx="6" fill="#8D6A8A" />
           <path d="M16 10v8M16 18v2M12 14l4 4 4-4M8 22h16" stroke="white" stroke-width="2" stroke-linecap="round" />
         </svg>
         <h1>Stitch Export</h1>
@@ -41,9 +41,11 @@
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M4 10h12M4 6h12M4 14h12" />
             </svg>
-            Export All Projects
+            <span class="export-all-label">Export All Projects</span>
           </button>
+          <div class="export-all-hint hidden">Projeler sayılıyor — biraz uzun sürebilir…</div>
           
+          <!-- Debug button — saklı, ileride lazım olabilir
           <button id="exportLinksButtonNotOnStitch" class="btn btn-secondary" style="margin-top: 10px; border: 1px dashed #ffffff4d;">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"/>
@@ -51,6 +53,7 @@
               </svg>
               Extract All Links (Debug)
           </button>
+          -->
         </div>
       </div>
 
@@ -108,9 +111,11 @@
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M4 10h12M4 6h12M4 14h12" />
             </svg>
-            Export All Projects
+            <span class="export-all-label">Export All Projects</span>
           </button>
+          <div class="export-all-hint hidden">Projeler sayılıyor — biraz uzun sürebilir…</div>
 
+          <!-- Debug button — saklı, ileride lazım olabilir
           <button id="exportLinksButton" class="btn btn-secondary" style="margin-top: 10px; border: 1px dashed #ffffff4d;">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"/>
@@ -118,7 +123,9 @@
               </svg>
               Extract All Links (Debug)
           </button>
+          -->
 
+          <!-- Copy to Clipboard — saklı, ileride lazım olabilir
           <button id="copyButton" class="btn btn-secondary">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="4" y="4" width="10" height="10" rx="2" />
@@ -126,6 +133,7 @@
             </svg>
             Copy to Clipboard
           </button>
+          -->
         </div>
       </div>
 

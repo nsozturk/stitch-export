@@ -1,25 +1,44 @@
 /**
  * Stitch Conversation Extractor
  * Extracts conversation data from stitch.withgoogle.com pages
+ * Uses batchexecute API (rpcid: dNS8Mc) for reliable extraction,
+ * with DOM-based fallback.
  */
 
 const StitchExtractor = {
+  // Abort flag — stops sidebar clicking when set to true
+  _abortExtraction: false,
+
   /**
    * Main extraction function
-   * @returns {Object} Extracted conversation data
+   * @returns {Promise<Object>} Extracted conversation data
    */
-  extractConversation() {
+  async extractConversation() {
     console.log('[Stitch Export] Starting conversation extraction...');
+    this._abortExtraction = false;
 
     try {
       // Extract project metadata
       const projectId = this.extractProjectId();
       const projectTitle = this.extractProjectTitle();
+      const sourceUrl = window.location.href;
 
-      // Extract messages
-      const messages = this.extractMessages();
+      // Strategy 1: API-based extraction (most reliable)
+      let messages = await this.extractMessagesViaAPI(projectId);
 
-      if (messages.length === 0) {
+      // Strategy 2: DOM-based extraction via Agent log sidebar clicking
+      if (!messages || messages.length === 0) {
+        console.log('[Stitch Export] API extraction failed, trying Agent log sidebar...');
+        messages = await this.extractMessagesViaSidebar();
+      }
+
+      // Strategy 3: Legacy DOM scraping
+      if (!messages || messages.length === 0) {
+        console.log('[Stitch Export] Sidebar extraction failed, trying legacy DOM...');
+        messages = this.extractMessagesLegacy();
+      }
+
+      if (!messages || messages.length === 0) {
         console.warn('[Stitch Export] No messages found');
         return null;
       }
@@ -27,18 +46,26 @@ const StitchExtractor = {
       const result = {
         projectId,
         projectTitle,
+        sourceUrl,
         timestamp: new Date().toISOString(),
         messages
       };
 
       console.log(`[Stitch Export] Extracted ${messages.length} messages`);
+
+      // Signal any still-running sidebar clicking to stop
+      this._abortExtraction = true;
+
       return result;
 
     } catch (error) {
       console.error('[Stitch Export] Extraction error:', error);
+      this._abortExtraction = true;
       return null;
     }
   },
+
+  // ─── METADATA ───────────────────────────────────────────────
 
   /**
    * Extract project ID from URL
@@ -78,60 +105,312 @@ const StitchExtractor = {
     return `Stitch Project ${this.extractProjectId()}`;
   },
 
+  // ─── STRATEGY 1: API-BASED EXTRACTION ──────────────────────
+
   /**
-   * Extract all messages from the conversation
+   * Extract messages via the batchexecute API (rpcid: dNS8Mc)
+   * This directly queries the Stitch backend for all session data.
+   * @param {string} projectId
+   * @returns {Promise<Array|null>}
+   */
+  async extractMessagesViaAPI(projectId) {
+    try {
+      // Get auth tokens from page HTML
+      const html = document.documentElement.innerHTML;
+      const sidMatch = html.match(/"FdrFJe":"([^"]+)"/);
+      const tokenMatch = html.match(/"SNlM0e":"([^"]+)"/);
+
+      if (!sidMatch || !tokenMatch) {
+        console.warn('[Stitch Export] Could not find auth tokens for API extraction');
+        return null;
+      }
+
+      const params = new URLSearchParams({
+        'f.req': `[[["dNS8Mc","[\\"projects/${projectId}\\"]",null,"28"]]]`,
+        'at': tokenMatch[1]
+      });
+
+      const res = await fetch(
+        `/_/Nemo/data/batchexecute?rpcids=dNS8Mc&f.sid=${sidMatch[1]}&rt=c`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: params.toString()
+        }
+      );
+
+      const text = await res.text();
+
+      // Parse the response: lines alternate between length and JSON
+      const lines = text.split('\n');
+      let innerData = null;
+      for (const line of lines) {
+        if (line.startsWith('[["wrb.fr","dNS8Mc"')) {
+          try {
+            const parsed = JSON.parse(line);
+            const innerStr = parsed[0][2];
+            innerData = JSON.parse(innerStr);
+          } catch (e) {
+            console.warn('[Stitch Export] Failed to parse dNS8Mc inner JSON:', e.message);
+          }
+          break;
+        }
+      }
+
+      if (!innerData) {
+        console.warn('[Stitch Export] dNS8Mc response contained no parseable data');
+        return null;
+      }
+
+      // Find the sessions array. Structure: innerData contains a nested array
+      // where each element has format:
+      //   [0]: "projects/{id}/sessions/{sessionId}"
+      //   [1]: null
+      //   [2]: 3 (status?)
+      //   [3]: [userPrompt, ...] — user prompt data
+      //   [4]: [screenResults, ..., responseText, suggestions...]
+      const sessionsArray = this.findSessionsArray(innerData);
+
+      if (!sessionsArray || sessionsArray.length === 0) {
+        console.warn('[Stitch Export] No sessions found in API response');
+        return null;
+      }
+
+      console.log(`[Stitch Export] Found ${sessionsArray.length} sessions via API`);
+
+      const messages = [];
+      const sourceUrl = window.location.href;
+
+      for (let i = 0; i < sessionsArray.length; i++) {
+        const turn = sessionsArray[i];
+
+        // Extract user prompt from turn[3][0]
+        let userContent = '';
+        if (turn[3] && turn[3][0] && typeof turn[3][0] === 'string') {
+          userContent = turn[3][0];
+        }
+
+        // Extract assistant response and screen names from turn[4]
+        let assistantContent = '';
+        const screenNames = [];
+
+        if (turn[4]) {
+          // Find strings in turn[4] that are responses
+          this.extractAPIResponseData(turn[4], (str, depth) => {
+            // The response text is usually at a shallow depth in turn[4]
+            // and is the longest string
+            if (str.length > assistantContent.length && depth <= 3 && !str.startsWith('projects/') && !str.startsWith('http') && !str.startsWith('Title:') && str.length > 30) {
+              assistantContent = str;
+            }
+          });
+
+          // Find screen/design names
+          this.extractAPIResponseData(turn[4], (str, depth) => {
+            if (depth >= 3 && str.length > 5 && str.length < 100 &&
+                !str.startsWith('projects/') && !str.startsWith('http') &&
+                !str.startsWith('Title:') && !str.includes('/') &&
+                !str.match(/^[a-f0-9]{32}$/) && !str.match(/^\d+$/) &&
+                str !== 'figaro_agent') {
+              // This might be a screen name
+              if (!screenNames.includes(str)) {
+                screenNames.push(str);
+              }
+            }
+          });
+        }
+
+        if (userContent) {
+          messages.push({
+            role: 'user',
+            content: userContent,
+            timestamp: new Date().toISOString(),
+            source: sourceUrl
+          });
+        }
+
+        if (assistantContent) {
+          let fullContent = assistantContent;
+          if (screenNames.length > 0) {
+            fullContent += '\n\n[Generated Screens: ' + screenNames.join(', ') + ']';
+          }
+          messages.push({
+            role: 'assistant',
+            content: fullContent,
+            timestamp: new Date().toISOString(),
+            source: sourceUrl
+          });
+        }
+      }
+
+      return messages.length > 0 ? messages : null;
+
+    } catch (error) {
+      console.error('[Stitch Export] API extraction error:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Recursively find the sessions array in the parsed API response
+   */
+  findSessionsArray(obj) {
+    if (Array.isArray(obj) && obj.length > 0 && Array.isArray(obj[0]) &&
+        typeof obj[0][0] === 'string' && obj[0][0].includes('sessions/')) {
+      return obj;
+    }
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const result = this.findSessionsArray(item);
+        if (result) return result;
+      }
+    }
+    return null;
+  },
+
+  /**
+   * Recursively extract string data from API response arrays
+   * @param {*} obj - Object to traverse
+   * @param {Function} callback - Called with (string, depth) for each string found
+   * @param {number} depth - Current recursion depth
+   */
+  extractAPIResponseData(obj, callback, depth = 0) {
+    if (typeof obj === 'string' && obj.length > 0) {
+      callback(obj, depth);
+    } else if (Array.isArray(obj)) {
+      for (const item of obj) {
+        this.extractAPIResponseData(item, callback, depth + 1);
+      }
+    }
+  },
+
+  // ─── STRATEGY 2: SIDEBAR CLICKING ─────────────────────────
+
+  /**
+   * Extract messages by clicking through the Agent log sidebar
+   * @returns {Promise<Array|null>}
+   */
+  async extractMessagesViaSidebar() {
+    // Open Agent log sidebar if needed
+    await this.openAgentLog();
+
+    const menuItems = document.querySelectorAll('[role="menuitem"]');
+    if (menuItems.length === 0) {
+      console.log('[Stitch Export] No menu items found in Agent log sidebar');
+      return null;
+    }
+
+    console.log(`[Stitch Export] Found ${menuItems.length} chat items in Agent log`);
+
+    const messages = [];
+    const sourceUrl = window.location.href;
+
+    for (let i = 0; i < menuItems.length; i++) {
+      // Check abort flag before each click
+      if (this._abortExtraction) {
+        console.log('[Stitch Export] Sidebar clicking aborted');
+        break;
+      }
+
+      const menuItem = menuItems[i];
+
+      console.log(`[Stitch Export] Clicking chat item ${i + 1}/${menuItems.length}`);
+      menuItem.click();
+
+      // Wait for the detail view to update
+      await this.delay(1000);
+      await this.waitForDesignsToLoad();
+
+      // Extract content from the detail view
+      const promptContainer = document.querySelector('div.group\\/prompt .markdown') ||
+                              document.querySelector('div.group\\/prompt');
+      const markdownBlocks = document.querySelectorAll('.markdown');
+
+      let userContent = '';
+      let assistantContent = '';
+
+      // Find user prompt
+      if (promptContainer) {
+        userContent = this.extractTextWithFormatting(promptContainer);
+      } else if (markdownBlocks.length > 0) {
+        userContent = this.extractTextWithFormatting(markdownBlocks[0]);
+      }
+
+      // Find assistant response
+      const assistantContainer = document.querySelector('.px-4.text-sm.leading-relaxed.mb-2.text-primary');
+      if (assistantContainer) {
+        assistantContent = this.extractTextWithFormatting(assistantContainer);
+      } else if (markdownBlocks.length > 1) {
+        assistantContent = this.extractTextWithFormatting(markdownBlocks[markdownBlocks.length - 1]);
+      }
+
+      // Append design references
+      const detailView = document.querySelector('main') || document.body;
+      assistantContent = this.appendDesignReferences(detailView, assistantContent, userContent);
+
+      if (userContent) {
+        messages.push({
+          role: 'user',
+          content: userContent,
+          timestamp: new Date().toISOString(),
+          source: sourceUrl
+        });
+      }
+
+      if (assistantContent) {
+        messages.push({
+          role: 'assistant',
+          content: assistantContent,
+          timestamp: new Date().toISOString(),
+          source: sourceUrl
+        });
+      }
+    }
+
+    return messages.length > 0 ? messages : null;
+  },
+
+  // ─── STRATEGY 3: LEGACY DOM SCRAPING ──────────────────────
+
+  /**
+   * Legacy synchronous DOM extraction
    * @returns {Array} Array of message objects
    */
-  extractMessages() {
+  extractMessagesLegacy() {
     const messages = [];
     const chatList = document.querySelector('[data-testid="chat-msg-list"]');
 
-    // Strategy 1: Look for section elements within the chat list
     let messageElements = chatList
       ? Array.from(chatList.querySelectorAll('section'))
       : Array.from(document.querySelectorAll('section.flex.flex-col'));
 
-    if (messageElements.length > 0) {
-      console.log(`[Stitch Export] Found ${messageElements.length} section elements`);
-    } else {
-      // Fallback: Look for markdown divs directly
-      console.log('[Stitch Export] No sections found, trying markdown divs...');
-      const messageSelectors = [
-        '.markdown',
-        'div.markdown',
-        '[class*="markdown"]'
-      ];
-
+    if (messageElements.length === 0) {
+      const messageSelectors = ['.markdown', 'div.markdown', '[class*="markdown"]'];
       for (const selector of messageSelectors) {
         const elements = Array.from(document.querySelectorAll(selector));
         if (elements.length > 0) {
-          console.log(`[Stitch Export] Found ${elements.length} elements with selector: ${selector}`);
           messageElements = elements;
           break;
         }
       }
     }
 
-    // If still no messages found, try fallback
     if (messageElements.length === 0) {
-      console.log('[Stitch Export] No message containers found, trying fallback...');
       messageElements = this.fallbackMessageExtraction();
     }
 
-    console.log(`[Stitch Export] Processing ${messageElements.length} message elements`);
+    console.log(`[Stitch Export] Legacy: Processing ${messageElements.length} message elements`);
 
-    // Process each message element
     let lastUserMessageContent = '';
+    const sourceUrl = window.location.href;
 
     for (let i = 0; i < messageElements.length; i++) {
       const element = messageElements[i];
       const message = this.extractMessageFromElement(element, i, lastUserMessageContent);
 
       if (message && message.content && message.content.trim()) {
+        message.source = sourceUrl;
         messages.push(message);
-        console.log(`[Stitch Export] Extracted message ${i + 1} (${message.role}): ${message.content.substring(0, 50)}...`);
 
-        // Update last user message content if this is a user message
         if (message.role === 'user') {
           lastUserMessageContent = message.content;
         }
@@ -146,33 +425,84 @@ const StitchExtractor = {
    * @returns {Array} Array of DOM elements that might be messages
    */
   fallbackMessageExtraction() {
-    // Look for paragraphs within the main content area
-    // This is a last resort and might need refinement
     const mainContent = document.querySelector('main') || document.body;
     const paragraphs = Array.from(mainContent.querySelectorAll('p'));
+    return paragraphs.filter(p => p.textContent.trim().length > 10);
+  },
 
-    // Filter paragraphs that look like messages (have substantial content)
-    return paragraphs.filter(p => {
-      const text = p.textContent.trim();
-      return text.length > 10; // Arbitrary minimum length
-    });
+  // ─── HELPERS ───────────────────────────────────────────────
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  },
+
+  /**
+   * Open the Agent log sidebar if needed
+   */
+  async openAgentLog() {
+    const agentLogSpans = Array.from(document.querySelectorAll('span'))
+      .filter(span => span.textContent.trim() === 'Agent log');
+
+    if (agentLogSpans.length > 0) {
+      const agentLogBtn = agentLogSpans[0].closest('[role="status"]') ||
+                          agentLogSpans[0].closest('div.cursor-pointer');
+      if (agentLogBtn) {
+        const menuItems = document.querySelectorAll('[role="menuitem"]');
+        if (menuItems.length === 0) {
+          console.log('[Stitch Export] Clicking Agent log to open sidebar...');
+          agentLogBtn.click();
+          await this.delay(1500);
+        }
+      }
+    }
+  },
+
+  /**
+   * Wait for designs/images to load
+   */
+  async waitForDesignsToLoad() {
+    for (let i = 0; i < 10; i++) {
+      const loaders = document.querySelectorAll(
+        '[style*="agentPendingEnter"], .animate-pulse, circle[class*="opacity-25"]'
+      );
+      if (loaders.length === 0) break;
+      await this.delay(500);
+    }
+    await this.delay(500);
+  },
+
+  /**
+   * Append design references to content string
+   */
+  appendDesignReferences(element, content, previousUserContent) {
+    let newContent = content || '';
+    const designElements = element.querySelectorAll(
+      '.bg-design, img[src*="/aida/"], [style*="/aida/"]'
+    );
+
+    if (designElements.length > 0) {
+      let referenceName = '';
+
+      const titleElement = element.querySelector('span.truncate');
+      if (titleElement && titleElement.textContent.trim()) {
+        referenceName = `stitch_${this.slugify(titleElement.textContent)}`;
+      } else if (previousUserContent) {
+        referenceName = `stitch_${this.slugify(previousUserContent)}`;
+      }
+
+      if (referenceName && !newContent.includes(`[Design Reference: ${referenceName}]`)) {
+        newContent += `\n\n[Design Reference: ${referenceName}]`;
+      }
+    }
+    return newContent;
   },
 
   /**
    * Extract message data from a DOM element
-   * @param {Element} element - DOM element containing message
-   * @param {number} index - Index of the message in the list
-   * @param {string} previousUserContent - Content of the previous user message
-   * @returns {Object} Message object
    */
   extractMessageFromElement(element, index = 0, previousUserContent = '') {
-    // Determine message role (user or assistant)
     const role = this.determineMessageRole(element, index);
-
-    // Extract content
     const content = this.extractMessageContent(element, previousUserContent);
-
-    // Try to extract timestamp if available
     const timestamp = this.extractTimestamp(element);
 
     return {
@@ -184,122 +514,73 @@ const StitchExtractor = {
 
   /**
    * Determine if message is from user or assistant
-   * @param {Element} element - Message element
-   * @param {number} index - Index in the message list
-   * @returns {string} 'user' or 'assistant'
    */
   determineMessageRole(element, index = 0) {
     const elementText = element.textContent || '';
     const elementHTML = element.outerHTML.toLowerCase();
-    const classNames = element.className.toLowerCase();
+    const classNames = (typeof element.className === 'string') ? element.className.toLowerCase() : '';
     const dataRole = element.getAttribute('data-role');
 
-    // Explicit avatar checks
-    if (element.querySelector('img[alt="Stitch avatar"]')) {
-      return 'assistant';
-    }
-    if (element.querySelector('img[alt^="Profile image for"]')) {
-      return 'user';
-    }
+    if (element.querySelector('img[alt="Stitch avatar"]')) return 'assistant';
+    if (element.querySelector('img[alt^="Profile image for"]')) return 'user';
 
-    // Check for "Stitch" text in the header (indicates assistant message)
     const stitchIndicators = element.querySelectorAll('[alt="Stitch avatar"]');
-    if (stitchIndicators.length > 0 || elementText.includes('Stitch')) {
-      return 'assistant';
-    }
+    if (stitchIndicators.length > 0 || elementText.includes('Stitch')) return 'assistant';
 
-    // Alternative: Check if text contains "Stitch" in the header area
     const headerDiv = element.querySelector('.flex.justify-between.items-center');
-    if (headerDiv && headerDiv.textContent.includes('Stitch')) {
-      return 'assistant';
-    }
+    if (headerDiv && headerDiv.textContent.includes('Stitch')) return 'assistant';
 
-    // Check for Stitch avatar image
-    if (elementHTML.includes('stitch-avatar')) {
-      return 'assistant';
-    }
+    if (elementHTML.includes('stitch-avatar')) return 'assistant';
 
-    // Check data-role attribute
     if (dataRole) {
       if (dataRole.includes('user') || dataRole.includes('human')) return 'user';
       if (dataRole.includes('assistant') || dataRole.includes('ai') || dataRole.includes('bot') || dataRole.includes('stitch')) return 'assistant';
     }
 
-    // Check class names
-    if (classNames.includes('user') || classNames.includes('human') || classNames.includes('prompt')) {
-      return 'user';
-    }
-    if (classNames.includes('assistant') || classNames.includes('ai') || classNames.includes('bot') || classNames.includes('response')) {
-      return 'assistant';
-    }
+    if (classNames.includes('user') || classNames.includes('human') || classNames.includes('prompt')) return 'user';
+    if (classNames.includes('assistant') || classNames.includes('ai') || classNames.includes('bot') || classNames.includes('response')) return 'assistant';
 
-    // Check aria-label
     const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
     if (ariaLabel.includes('user')) return 'user';
     if (ariaLabel.includes('assistant') || ariaLabel.includes('ai') || ariaLabel.includes('stitch')) return 'assistant';
 
-    // Default: Stitch typically alternates user/assistant messages
-    // User messages usually come first (index 0, 2, 4...)
-    // Assistant responses follow (index 1, 3, 5...)
     return index % 2 === 0 ? 'user' : 'assistant';
   },
 
   /**
    * Extract text content from message element
-   * @param {Element} element - Message element
-   * @param {string} previousUserContent - Content of the previous user message (for inferring filenames)
-   * @returns {string} Message content
    */
   extractMessageContent(element, previousUserContent = '') {
     let content = '';
 
-    // Try to get markdown content if available
     const markdownElement = element.querySelector('.markdown, [class*="markdown"]');
     if (markdownElement) {
       content = this.extractTextWithFormatting(markdownElement);
     } else {
-      // Otherwise get all text content
       content = this.extractTextWithFormatting(element);
     }
 
     // Clean up Stitch-specific formatting
-    // Remove "[Images generated by Stitch]:" section and profile/avatar image references
-    // Pattern: [Images generated by Stitch]:\nImage 1: <url>\n\n---\n\n<actual message>
     content = content.replace(/\[Images generated by Stitch\]:[\s\S]*?---\s*/g, '');
-
-    // Also remove standalone profile/avatar image URLs (lh3.googleusercontent.com/a/ are user avatars)
     content = content.replace(/https:\/\/lh3\.googleusercontent\.com\/a\/[^\s]+/g, '');
-
-    // Clean up excessive whitespace left after removal
     content = content.replace(/\n{3,}/g, '\n\n').trim();
 
-    // Check for design artifacts (images)
-    // The user wants to reference the design filename.
-    // Priority 1: Explicit title in the DOM (local)
-    // Priority 2: Cross-reference by Image ID (find title in full-view elements)
-    // Priority 3: Infer from previous user message
-
-    // We look for .bg-design class OR images/backgrounds containing '/aida/' (Google User Content)
+    // Check for design artifacts
     const designElements = element.querySelectorAll('.bg-design, img[src*="/aida/"], [style*="/aida/"]');
 
     if (designElements.length > 0) {
       let referenceName = '';
 
-      // Priority 1: Try to find explicit title locally
       const titleElement = element.querySelector('span.truncate');
       if (titleElement && titleElement.textContent.trim()) {
-        const slug = this.slugify(titleElement.textContent);
-        referenceName = `stitch_${slug}`;
-      }
-      else {
-        // Priority 2: Cross-reference by Image ID
-        // Try to find the title in other elements sharing the same image ID
+        referenceName = `stitch_${this.slugify(titleElement.textContent)}`;
+      } else {
+        // Cross-reference by Image ID
         for (const designEl of designElements) {
           let url = designEl.getAttribute('src');
           if (!url) {
             const style = designEl.getAttribute('style');
             if (style) {
-              // Handle both &quot; and regular quotes
               const urlMatch = style.match(/url\(&quot;([^&]+)&quot;\)/) ||
                 style.match(/url\("([^"]+)"\)/) ||
                 style.match(/url\('([^']+)'\)/) ||
@@ -310,18 +591,13 @@ const StitchExtractor = {
 
           const imageId = this.extractImageId(url);
           if (imageId) {
-            // Search for other images with this ID in the entire document
             const relatedImages = document.querySelectorAll(`img[src*="/aida/${imageId}"], [style*="/aida/${imageId}"]`);
-
             for (const relatedImg of relatedImages) {
-              // Traverse up to find a container with span.truncate
-              // We'll check a few levels up (e.g., 6 levels) to find the container holding the title
               let parent = relatedImg.parentElement;
               for (let i = 0; i < 6 && parent; i++) {
                 const relatedTitle = parent.querySelector('span.truncate');
                 if (relatedTitle && relatedTitle.textContent.trim()) {
-                  const slug = this.slugify(relatedTitle.textContent);
-                  referenceName = `stitch_${slug}`;
+                  referenceName = `stitch_${this.slugify(relatedTitle.textContent)}`;
                   break;
                 }
                 parent = parent.parentElement;
@@ -332,14 +608,11 @@ const StitchExtractor = {
           if (referenceName) break;
         }
 
-        // Priority 3: Fallback to previous user message
         if (!referenceName && previousUserContent) {
-          const slug = this.slugify(previousUserContent);
-          referenceName = `stitch_${slug}`;
+          referenceName = `stitch_${this.slugify(previousUserContent)}`;
         }
       }
 
-      // Append reference to content if we found a name
       if (referenceName) {
         content += `\n\n[Design Reference: ${referenceName}]`;
       }
@@ -350,200 +623,133 @@ const StitchExtractor = {
 
   /**
    * Extract Image ID from a URL
-   * @param {string} url - URL to extract from
-   * @returns {string|null} Image ID or null
    */
   extractImageId(url) {
     if (!url) return null;
-    // Look for the ID after /aida/
-    // e.g. .../aida/ANOJjBvDHkMPkL0sPm68gNZePFHg0VOLy0wXyD2ywDtM8gTUCQdRReS6AcVrIkMsn-2c7uqStgZw_iEOajE6poS-3xjOzFJVT9_LIbsN6NIhfPJlvHL_RM1-2j3VRu9LvFQXuJRs_--r_udjvcc93It2VYYh8M1fa1u4wsw1zcPpNjSyAnwZrLV_IgxY50eFitm7woU42Ie4xPNWL2_OyTQ49CwbCDxQHkXdzooQP-yQ9-E8oEbWz0n4vk-zfTo=s400
     const match = url.match(/\/aida\/([^/=]+)/);
     return match ? match[1] : null;
   },
 
   /**
    * Convert text to a slug for filenames
-   * @param {string} text - Text to slugify
-   * @returns {string} Slugified text
    */
   slugify(text) {
-    return text
-      .toString()
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '_')     // Replace spaces with -
-      .replace(/[^\w\-]+/g, '') // Remove all non-word chars
-      .replace(/\-\-+/g, '_');  // Replace multiple - with single -
+    return text.toString().toLowerCase().trim()
+      .replace(/\s+/g, '_')
+      .replace(/[^\w\-]+/g, '')
+      .replace(/\-\-+/g, '_');
   },
 
   /**
    * Extract image URLs from message element
-   * @param {Element} element - Message element
-   * @returns {Array} Array of image URLs
    */
   extractImageReferences(element) {
     const images = [];
-
-    // Look for image preview divs
     const imageContainers = element.querySelectorAll('[style*="background-image"]');
 
     imageContainers.forEach(container => {
       const style = container.getAttribute('style');
-      // Extract URL from background-image style
       const urlMatch = style.match(/url\(&quot;([^&]+)&quot;\)/);
-      if (urlMatch && urlMatch[1]) {
-        images.push(urlMatch[1]);
-      }
+      if (urlMatch && urlMatch[1]) images.push(urlMatch[1]);
     });
 
-    // Also look for regular img tags
     const imgTags = element.querySelectorAll('img:not([alt="Stitch avatar"])');
     imgTags.forEach(img => {
       const src = img.getAttribute('src');
-      if (src && !src.includes('stitch-avatar')) {
-        images.push(src);
-      }
+      if (src && !src.includes('stitch-avatar')) images.push(src);
     });
 
     return images;
   },
 
   /**
-   * Extract text while preserving some formatting
-   * @param {Element} element - Element to extract from
-   * @returns {string} Formatted text
+   * Extract text while preserving formatting
    */
   extractTextWithFormatting(element) {
-    // Use a simpler, more reliable approach
-    // Process the element recursively to maintain structure
-
     const processNode = (node, depth = 0) => {
       let result = '';
 
       if (node.nodeType === Node.TEXT_NODE) {
         const text = node.textContent;
-        // Only add non-empty text
-        if (text.trim()) {
-          result += text;
-        }
+        if (text.trim()) result += text;
         return result;
       }
 
-      if (node.nodeType !== Node.ELEMENT_NODE) {
-        return result;
-      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return result;
 
       const tagName = node.tagName.toLowerCase();
 
-      // Handle different HTML elements
       switch (tagName) {
         case 'p':
-          // Paragraph - add double newline before and after
           if (node.textContent.trim()) {
             result += '\n\n' + Array.from(node.childNodes).map(child => processNode(child, depth)).join('');
           }
           break;
-
         case 'br':
           result += '\n';
           break;
-
         case 'ul':
         case 'ol':
-          // List - process each list item
           result += '\n';
           Array.from(node.children).forEach(child => {
-            if (child.tagName.toLowerCase() === 'li') {
-              result += processNode(child, depth + 1);
-            }
+            if (child.tagName.toLowerCase() === 'li') result += processNode(child, depth + 1);
           });
           break;
-
-        case 'li':
-          // List item - add bullet point
+        case 'li': {
           const listContent = Array.from(node.childNodes).map(child => processNode(child, depth)).join('').trim();
-          if (listContent) {
-            result += '\n- ' + listContent;
-          }
+          if (listContent) result += '\n- ' + listContent;
           break;
-
+        }
         case 'strong':
-        case 'b':
-          // Bold - wrap with **
+        case 'b': {
           const boldText = Array.from(node.childNodes).map(child => processNode(child, depth)).join('').trim();
           result += '**' + boldText + '**';
           break;
-
+        }
         case 'em':
-        case 'i':
-          // Italic - wrap with *
+        case 'i': {
           const italicText = Array.from(node.childNodes).map(child => processNode(child, depth)).join('').trim();
           result += '*' + italicText + '*';
           break;
-
+        }
         case 'code':
-          // Inline code - wrap with `
-          const codeText = node.textContent;
-          result += '`' + codeText + '`';
+          result += '`' + node.textContent + '`';
           break;
-
         case 'pre':
-          // Code block - wrap with ```
-          const preText = node.textContent;
-          result += '\n```\n' + preText + '\n```\n';
+          result += '\n```\n' + node.textContent + '\n```\n';
           break;
-
-        case 'h1':
-        case 'h2':
-        case 'h3':
-        case 'h4':
-        case 'h5':
-        case 'h6':
-          // Headings
+        case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6': {
           const level = parseInt(tagName[1]);
           const headingText = Array.from(node.childNodes).map(child => processNode(child, depth)).join('').trim();
           result += '\n\n' + '#'.repeat(level) + ' ' + headingText + '\n';
           break;
-
+        }
         default:
-          // For other elements, just process children
           result += Array.from(node.childNodes).map(child => processNode(child, depth)).join('');
       }
 
       return result;
     };
 
-    const text = processNode(element);
-
-    // Clean up excessive newlines and trim
-    return text
-      .replace(/\n{3,}/g, '\n\n')  // Max 2 consecutive newlines
-      .trim();
+    return processNode(element).replace(/\n{3,}/g, '\n\n').trim();
   },
 
   /**
    * Extract timestamp from element if available
-   * @param {Element} element - Message element
-   * @returns {string|null} ISO timestamp or null
    */
   extractTimestamp(element) {
-    // Look for time elements or timestamp data
     const timeElement = element.querySelector('time');
     if (timeElement) {
       const datetime = timeElement.getAttribute('datetime');
       if (datetime) return datetime;
     }
-
-    // Look for data-timestamp attribute
     const dataTimestamp = element.getAttribute('data-timestamp');
     if (dataTimestamp) return dataTimestamp;
-
     return null;
   },
 
   /**
    * Check if we're on a Stitch project page
-   * @returns {boolean} True if on a Stitch project page
    */
   isOnStitchProjectPage() {
     return window.location.hostname === 'stitch.withgoogle.com' &&

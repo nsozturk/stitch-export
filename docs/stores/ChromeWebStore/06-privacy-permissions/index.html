@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>06 · Privacy & Permissions · Stitch Export</title>
+<style>
+:root {
+  --bg: #0b0c10;
+  --bg-elev: #15171f;
+  --bg-card: #1c1f2a;
+  --border: #2a2e3d;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #8D6A8A;
+  --accent-soft: #8D6A8A33;
+  --accent-deep: #50384E;
+  --accent-hover: #745472;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --bad: #ef4444;
+  --info: #60a5fa;
+  --ref: #c084fc;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fafafa;
+    --bg-elev: #ffffff;
+    --bg-card: #ffffff;
+    --border: #e5e7eb;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #8D6A8A;
+    --accent-soft: #8D6A8A22;
+    --accent-deep: #50384E;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 32px 24px 96px; }
+.back {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.back:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+article h1 { font-size: 32px; line-height: 1.2; letter-spacing: -0.02em; margin: 24px 0 16px; }
+article h2 { font-size: 22px; letter-spacing: -0.01em; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+article h3 { font-size: 17px; margin: 28px 0 10px; color: var(--text); }
+article h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 24px 0 8px; }
+
+article p { margin: 12px 0; }
+article blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  border-radius: 0 8px 8px 0;
+}
+article blockquote p { margin: 0; }
+article ul, article ol { padding-left: 24px; margin: 12px 0; }
+article li { margin: 6px 0; }
+article hr { border: 0; height: 1px; background: var(--border); margin: 32px 0; }
+article code {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+article pre {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+article pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+article table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 14px;
+}
+article thead { background: var(--bg-elev); }
+article th, article td {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+article th { font-weight: 600; color: var(--muted); }
+article img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+article strong { color: var(--text); }
+article input[type=checkbox] { accent-color: var(--accent); margin-right: 6px; }
+
+.meta-foot {
+  margin-top: 56px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.meta-foot code { background: var(--bg-elev); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← back to hub</a>
+<article id="content"></article>
+<div class="meta-foot">
+  Source: <code>docs/stores/ChromeWebStore/06-privacy-permissions/README.md</code> · rendered via marked.js CDN
+</div>
+</div>
+<script type="text/markdown" id="md">
+# 06 · Privacy & Permissions
+
+> **Status:** ⏳ todo
+
+**Duration:** ~30 dk (her permission için justification yazma)
+**Pre-req:** Faz 03 — package upload başarılı
+**Output:** Privacy practices formu eksiksiz doldurulmuş, single purpose net.
+
+---
+
+Chrome Web Store inceleme sürecinin en sıkı kısmı bu. Bir tane red yersen yeniden submit etmek gerekiyor → 1-3 gün daha bekleme. Bu yüzden **dikkatli doldur**.
+
+Dashboard → **Privacy practices** sekmesi.
+
+## 1. Single purpose
+
+Tek satırlık tanım. Açık ve dar olmalı.
+
+```
+Export Stitch design conversations and projects to LLM-compatible formats and ZIP archives.
+```
+
+> Eski ifadende "everything Stitch" gibi belirsiz bir şey vardıysa **mutlaka değiştir** — single purpose'ı genişletmek "policy violation" olabilir.
+
+## 2. Permission justifications
+
+Her permission için neden gerektiğini açıkla. Reviewer **literal olarak okuyor**.
+
+### `activeTab`
+
+```
+Used to extract the conversation data and screen DOM from the currently active
+Stitch project tab when the user explicitly clicks "Export Conversation" or
+selects "Export Stitch Conversation" from the right-click menu. No background
+access — fires only on user interaction.
+```
+
+### `scripting`
+
+```
+Required by Manifest V3 to inject the page-context extraction script into the
+active Stitch tab. The injected script reads window-level auth tokens
+(FdrFJe, SNlM0e) which are already present in the page's HTML and calls
+Stitch's own batchexecute API endpoints to retrieve project data.
+```
+
+### `contextMenus`
+
+```
+Adds two right-click menu items on stitch.withgoogle.com pages:
+"Export Stitch Conversation" (single project) and
+"Export All Stitch Projects" (batch). Both items are visible only on Stitch
+domains and only act when the user clicks them.
+```
+
+### `downloads`
+
+```
+Used to save the exported conversation JSON files and the batch export ZIP
+archive to the user's local Downloads folder. All saves use the standard
+chrome.downloads.download API with saveAs:true, so the user sees and
+controls the file location.
+```
+
+### `tabs` ⚠️ MODERATE RISK
+
+```
+Required for two features:
+
+1. Toolbar icon badge — to detect when the user is on stitch.withgoogle.com
+   (list page → badge shows project count; project page → "EXP" reminder),
+   the extension reads tab URL changes via chrome.tabs.onUpdated. The badge
+   text only reflects the destination URL category; no URL content is stored
+   or transmitted.
+
+2. Batch export — opens a single background tab on stitch.withgoogle.com to
+   read API auth tokens, fires API calls in that tab context, and closes the
+   tab when done. The tab is non-active (background) for the user's
+   convenience and is removed after the export completes.
+
+No tab data is sent to any external server. The extension does not enumerate
+or read content from non-Stitch tabs.
+```
+
+> Bu en kritik. Reviewer tabs permission'ını yakından okur. Yukarıdaki gerekçe açık ve doğru — kopyala yapıştır.
+
+## 3. Host permissions justification
+
+### `https://stitch.withgoogle.com/*`
+
+```
+Primary host of the Stitch design tool. The extension's content scripts,
+context menu items, and batch export workflow all operate exclusively on this
+host. The single legitimate purpose of the extension is to export user data
+from this site.
+```
+
+### `https://*.appspot.com/*`
+
+```
+Stitch is hosted on an internal Google appspot backend; some API responses
+and asset references resolve through *.appspot.com subdomains. The extension
+needs to read these responses (read-only, via the user's existing session)
+to assemble the export.
+```
+
+### `https://contribution.usercontent.google.com/*`
+
+```
+Stitch publishes generated HTML design files on this Google CDN. To bundle a
+project's design files into the export ZIP, the extension fetches each HTML
+file directly from this CDN. Download URLs are signed tokens returned by
+Stitch's API — no cookies or session data are sent.
+```
+
+### `https://lh3.googleusercontent.com/*`
+
+```
+Stitch generates screenshot URLs for each design on this Google CDN. The
+extension references (does not necessarily download) these URLs in the
+exported chat.json so users can preview designs alongside the conversation
+history.
+```
+
+## 4. Data usage disclosure
+
+### Hangi data toplanıyor?
+
+| Question | Answer |
+|---|---|
+| Personally identifiable information (name, email, etc.) | **No** |
+| Health information | **No** |
+| Financial info | **No** |
+| Authentication info (passwords, tokens) | **No** — uses your existing Stitch session cookies, never reads or transmits them |
+| Personal communications | **No** — exports Stitch conversations LOCALLY to your machine; not transmitted |
+| Location | **No** |
+| Web history | **No** |
+| User activity | **No** — no analytics, telemetry, or tracking |
+| Website content | **No** — reads Stitch page content but only on user-triggered export; not stored or sent |
+
+### Data usage certifications
+
+| Certification | Answer |
+|---|---|
+| Data is not sold to third parties | ✅ |
+| Data is not used for unrelated purposes | ✅ |
+| Data is not used for credit-worthiness/loan determination | ✅ |
+
+## 5. Privacy policy URL ⚠️
+
+Chrome Web Store şu durumlarda privacy policy URL **zorunlu** tutar:
+- Permission'lardan biri "sensitive" ise (`activeTab`, `tabs`, `scripting`, host permissions hep "potentially sensitive")
+- Single purpose'da kullanıcı verisi ima ediyorsa
+
+Sitch Export bu kapsamda. **Bir privacy policy URL'i sağlamak zorundayız**.
+
+### Hızlı çözüm: GitHub-hosted privacy policy
+
+GitHub repo'da `PRIVACY.md` dosyası oluştur, raw URL'i kullan:
+
+```
+https://raw.githubusercontent.com/nsozturk/stitch-export/main/PRIVACY.md
+```
+
+Ya da daha güzeli — GitHub Pages açıp `https://nsozturk.github.io/stitch-export/privacy.html` gibi bir URL kullan.
+
+### Privacy policy içeriği (taslak)
+
+```markdown
+# Stitch Export Privacy Policy
+
+**Last updated:** 2026-05-15
+
+Stitch Export is a Chrome extension that exports your design
+conversations and projects from stitch.withgoogle.com to local
+files on your machine.
+
+## Data we collect
+
+**None.** The extension does not collect, store, or transmit any
+data to any server controlled by us or any third party.
+
+## Data we read
+
+When you actively trigger an export, the extension reads:
+
+- The DOM and embedded API tokens of the active Stitch tab
+- The response of Stitch's own API endpoints (project list,
+  screen instances, chat sessions)
+- HTML design files from Google's contribution.usercontent.google.com CDN
+
+All reads use your existing Stitch login session via standard
+browser cookies. The extension never accesses or transmits your
+password or session tokens.
+
+## What we do with that data
+
+We pass it directly to a JSON or ZIP file in your browser's
+Downloads folder. The file stays on your machine. We have no
+servers and collect no analytics.
+
+## Permissions
+
+See the Chrome Web Store listing for a per-permission justification.
+All permissions are used solely for the export functionality.
+
+## Contact
+
+GitHub issues: https://github.com/nsozturk/stitch-export/issues
+Email: telepenu@gmail.com
+```
+
+> **Eylem**: Bu metni `PRIVACY.md` olarak repo köküne ekle, push'la, Dashboard'daki "Privacy policy URL" alanına yapıştır.
+
+## 6. Account access (eğer varsa)
+
+| Field | Answer |
+|---|---|
+| Does this extension require user login? | **No** — uses your existing Stitch session |
+| Does it transfer user data outside the device? | **No** |
+| Does it use OAuth or external auth? | **No** |
+
+## 7. Remote code
+
+| Question | Answer |
+|---|---|
+| Does the extension execute remote code? | **No** — all code bundled in the package; no eval, no remote script load |
+
+> Manifest V3 zaten remote code'u yasak. Ama Privacy practices'te tekrar onaylaman gerekir.
+
+---
+
+## Sıradaki adım
+
+✅ Tüm alanları doldurduysan ve **PRIVACY.md** GitHub'da live ise: [07 · Submit for Review](../07-submit-review/index.html)
+
+## Screenshots
+
+- `screenshots/01-privacy-practices-filled.png` — doldurulmuş Privacy practices formu
+- `screenshots/02-permission-justifications.png` — permission listesi gerekçeleriyle
+- `screenshots/03-privacy-policy-url.png` — Privacy policy URL alanı dolduğunda
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const raw = document.getElementById('md').textContent;
+marked.setOptions({ gfm: true, breaks: false });
+document.getElementById('content').innerHTML = marked.parse(raw);
+// Rewrite <a href="something.md"> → ".html" / "index.html" so links between
+// docs continue to work after the static render.
+document.querySelectorAll('article a[href$=".md"]').forEach((a) => {
+  const h = a.getAttribute('href');
+  if (h.endsWith('README.md')) {
+    a.setAttribute('href', h.replace(/README\.md$/, 'index.html'));
+  } else {
+    a.setAttribute('href', h.replace(/\.md$/, '.html'));
+  }
+});
+// GitHub-style task list rendering for "- [ ]" / "- [x]" items
+document.querySelectorAll('article li').forEach((li) => {
+  const txt = li.firstChild;
+  if (txt && txt.nodeType === 3) {
+    const m = txt.nodeValue.match(/^\s*\[( |x|X)\]\s+(.*)/);
+    if (m) {
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.disabled = true; box.checked = m[1].toLowerCase() === 'x';
+      txt.nodeValue = ' ' + m[2];
+      li.insertBefore(box, txt);
+      li.style.listStyleType = 'none';
+      li.style.marginLeft = '-20px';
+    }
+  }
+});
+</script>
+</body>
+</html>
