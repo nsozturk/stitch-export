@@ -1,12 +1,20 @@
-# Stitch Export — Chrome Extension
+# Stitch Export
 
 > Archive every conversation and design from [stitch.withgoogle.com](https://stitch.withgoogle.com) — in 30 seconds.
+
+[![Version](https://img.shields.io/github/v/release/nsozturk/stitch-export?style=flat-square&color=8D6A8A&label=version)](https://github.com/nsozturk/stitch-export/releases/latest)
+[![License](https://img.shields.io/github/license/nsozturk/stitch-export?style=flat-square&color=8D6A8A)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/nsozturk/stitch-export/total?style=flat-square&color=8D6A8A&label=downloads)](https://github.com/nsozturk/stitch-export/releases)
+[![Last commit](https://img.shields.io/github/last-commit/nsozturk/stitch-export?style=flat-square&color=8D6A8A)](https://github.com/nsozturk/stitch-export/commits/main)
+![Manifest V3](https://img.shields.io/badge/manifest-v3-8D6A8A?style=flat-square)
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-8D6A8A?style=flat-square&logo=googlechrome&logoColor=white)
+![PRs welcome](https://img.shields.io/badge/PRs-welcome-8D6A8A?style=flat-square)
+
+![Stitch Export — Archive every Stitch design in 30 seconds](assets/hero.png)
 
 Stitch Export is a Chrome extension that exports your conversations and
 generated designs from Google Stitch to LLM-compatible JSON formats (Claude
 Code, ChatGPT) and ZIP archives with the full per-turn design history.
-
-![Popup with export formats](assets/screenshot_1.png)
 
 ## Features
 
@@ -24,19 +32,17 @@ Code, ChatGPT) and ZIP archives with the full per-turn design history.
 - **Context menu** — right-click → Export
 - **Local-only processing** — no data leaves your browser
 
-## Screenshots
-
-![Batch export progress](assets/screenshot_2.png)
+![Batch export — 10 parallel API calls, 6 parallel HTML downloads](assets/batch-export.png)
 
 ## Installation
 
-### Chrome Web Store (recommended)
+### Chrome Web Store
 
-> v1.2.0 currently in review — see GitHub Releases for the unpacked ZIP.
+> v1.2.0 currently in review.
 
-### Developer Mode (unpacked)
+### Developer Mode (unpacked, until Store review completes)
 
-1. Download the latest release: [stitch-export-1.2.0.zip](https://github.com/nsozturk/stitch-export/releases/latest)
+1. Download the latest ZIP: [stitch-export-1.2.0.zip](https://github.com/nsozturk/stitch-export/releases/latest)
 2. Unzip somewhere on disk
 3. Open `chrome://extensions/`
 4. Enable **Developer Mode** (top-right)
@@ -48,12 +54,15 @@ Code, ChatGPT) and ZIP archives with the full per-turn design history.
 
 1. Open a Stitch project: `https://stitch.withgoogle.com/projects/{ID}`
 2. Click the Stitch Export icon (or right-click → Export Stitch Conversation)
-3. Choose a format → Export Conversation → JSON saved to Downloads
+3. Choose a format → **Export Conversation** → JSON saved to Downloads
 
 ### Batch export all projects
 
-1. Click the Stitch Export icon on **any** Stitch tab
-2. Click **Export All Projects (NN)** — the icon shows the project count
+![Live project count on the toolbar](assets/toolbar-badge.png)
+
+1. Click the Stitch Export icon on **any** Stitch tab — the icon shows
+   the project count as a badge
+2. Click **Export All Projects (NN)** in the popup
 3. The extension fetches every project via Stitch's API in one tab and
    downloads every design HTML directly from Google's CDN
 4. A single ZIP is downloaded with this layout per project:
@@ -160,8 +169,6 @@ Pick the role names yourself (e.g. `Human` / `Model`).
 - All network requests go to Google's own domains (Stitch API, Google
   content CDN). The extension has no servers of its own.
 
-Full policy: [PRIVACY.md](PRIVACY.md)
-
 ## Development
 
 No build step. Load the folder in Developer Mode and refresh the Stitch
@@ -176,6 +183,9 @@ python3 docs/stores/scripts/render-docs.py
 
 # Capture popup screenshots (requires puppeteer locally)
 node screenshots/capture-puppeteer.js
+
+# Regenerate Chrome Web Store marketing assets (requires Pillow)
+python3 screenshots/gen-store-assets.py
 ```
 
 ## Release / publishing
@@ -190,7 +200,7 @@ for the full 8-phase Chrome Web Store launch guide. Quick links:
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
 ## Disclaimer
 
