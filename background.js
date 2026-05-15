@@ -479,7 +479,7 @@ async function handleExportAllProjects(format, options = {}) {
   }
 }
 
-// Fetch list of projects from the Stitch dashboard
+// Fetch list of projects from the Stitch dashboard using the API
 async function fetchProjectList() {
   // Open dashboard in a background tab
   const tab = await chrome.tabs.create({
@@ -491,181 +491,83 @@ async function fetchProjectList() {
     // Wait for tab to finish loading
     await waitForTabLoad(tab.id);
 
-    // The Stitch dashboard renders in an iframe; wait for it to load
-    // Retry a few times with increasing delays
-    let allProjects = [];
-    const attempts = [
-      { wait: 6000,  desc: 'initial' },
-      { wait: 4000,  desc: 'retry-1' },
-      { wait: 5000,  desc: 'retry-2' }
-    ];
+    // Give it a brief moment to initialize window variables
+    await delay(2000);
 
-    for (const attempt of attempts) {
-      if (allProjects.length > 0) break;
-
-      console.log(`[Stitch Export] Dashboard extraction attempt: ${attempt.desc}, waiting ${attempt.wait}ms...`);
-      await delay(attempt.wait);
-
-      // First: try to read iframe src attributes from the main frame to get direct iframe URLs
-      const iframeResults = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: extractIframeProjectUrls
-      });
-
-      for (const r of iframeResults) {
-        if (r.result && Array.isArray(r.result)) {
-          for (const p of r.result) {
-            if (p && p.id && !allProjects.find(ap => ap.id === p.id)) {
-              allProjects.push(p);
-            }
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: async () => {
+        try {
+          // Extract auth tokens from HTML
+          const html = document.documentElement.innerHTML;
+          const sidMatch = html.match(/"FdrFJe":"([^"]+)"/);
+          const tokenMatch = html.match(/"SNlM0e":"([^"]+)"/);
+          
+          if (!sidMatch || !tokenMatch) {
+            return { error: "Could not find auth tokens (FdrFJe or SNlM0e) in page source" };
           }
+          
+          const params = new URLSearchParams({
+            'f.req': '[[["A7f2qf","[null,null,1]",null,"9"]]]',
+            'at': tokenMatch[1]
+          });
+          
+          const res = await fetch(`/_/Nemo/data/batchexecute?rpcids=A7f2qf&f.sid=${sidMatch[1]}&rt=c`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            },
+            body: params.toString()
+          });
+          
+          const text = await res.text();
+          
+          const projects = [];
+          const regex = /\\\"projects\\\/(\\d+)\\\",\\\"([^"\\\\]+)\\\"/g;
+          // Wait, if it's evaluated in the browser context, the regex literal is:
+          // /\\"projects\/(\d+)\\",\\"([^"\\]+)\\"/g
+          
+          // Let's use RegExp to avoid escaping hell
+          const re = /\\\"projects\/(\d+)\\\",\\\"([^"\\\\]+)\\\"/g;
+          
+          let match;
+          const seen = new Set();
+          while ((match = re.exec(text)) !== null) {
+             const id = match[1];
+             const title = match[2];
+             if (!seen.has(id)) {
+               seen.add(id);
+               projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
+             }
+          }
+          
+          if (projects.length > 0) {
+             return { success: true, projects };
+          } else {
+             return { error: "API returned no projects or parse failed" };
+          }
+        } catch (e) {
+          return { error: e.message };
         }
       }
+    });
 
-      // Second: run inside all frames (main + iframes) to scrape links
-      const frameResults = await chrome.scripting.executeScript({
-        target: { tabId: tab.id, allFrames: true },
-        func: extractProjectListFromPage
-      });
-
-      for (const r of frameResults) {
-        if (r.result && Array.isArray(r.result)) {
-          for (const p of r.result) {
-            if (p && p.id && !allProjects.find(ap => ap.id === p.id)) {
-              allProjects.push(p);
-            }
-          }
-        }
+    if (results && results[0] && results[0].result) {
+      if (results[0].result.success) {
+        return results[0].result.projects;
+      } else {
+        throw new Error(results[0].result.error || "Failed to fetch projects via API");
       }
-
-      console.log(`[Stitch Export] Attempt ${attempt.desc}: found ${allProjects.length} projects`);
     }
 
-    return allProjects;
-
+    throw new Error("Failed to execute project fetch script");
   } finally {
     // Always close the dashboard tab
     try {
       await chrome.tabs.remove(tab.id);
-    } catch (e) {
-      // Tab may already be closed
-    }
+    } catch (e) {}
   }
 }
-
-// Extract project URLs from iframe src attributes in the main frame
-function extractIframeProjectUrls() {
-  const projects = [];
-  const seen = new Set();
-
-  // The Stitch app renders inside an iframe from appspot.com
-  const iframes = document.querySelectorAll('iframe');
-  for (const iframe of iframes) {
-    const src = iframe.src || '';
-    // Match project IDs in iframe src URLs like:
-    // https://app-companion-430619.appspot.com/projects/123456
-    const match = src.match(/projects\/(\d+)/);
-    if (match) {
-      const id = match[1];
-      if (!seen.has(id)) {
-        seen.add(id);
-        projects.push({
-          id,
-          title: `Project ${id}`,
-          url: `https://stitch.withgoogle.com/projects/${id}`
-        });
-      }
-    }
-  }
-
-  return projects;
-}
-
-// Self-contained function injected into page (main or iframe) to extract project list
-function extractProjectListFromPage() {
-  const projects = [];
-  const seenIds = new Set();
-
-  // Strategy 1: Full href links containing /projects/
-  const links = document.querySelectorAll('a[href*="/projects/"]');
-  links.forEach(link => {
-    const match = link.href.match(/projects\/(\d+)/);
-    if (match) {
-      const id = match[1];
-      if (!seenIds.has(id)) {
-        seenIds.add(id);
-        const title = link.textContent.trim() || `Project ${id}`;
-        projects.push({ id, title, url: link.href });
-      }
-    }
-  });
-
-  // Strategy 1b: Relative href links (hash or path-only routing)
-  const relLinks = document.querySelectorAll('a[href^="#/projects/"], a[href^="/projects/"], a[href^="projects/"]');
-  relLinks.forEach(link => {
-    const match = link.getAttribute('href').match(/projects\/(\d+)/);
-    if (match) {
-      const id = match[1];
-      if (!seenIds.has(id)) {
-        seenIds.add(id);
-        const title = link.textContent.trim() || `Project ${id}`;
-        projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
-      }
-    }
-  });
-
-  // Strategy 2: data-project-id attributes
-  const dataElements = document.querySelectorAll('[data-project-id]');
-  dataElements.forEach(el => {
-    const id = el.getAttribute('data-project-id');
-    if (id && !seenIds.has(id)) {
-      seenIds.add(id);
-      const titleEl = el.querySelector('h3, h4, .title, [class*="title"], span, p, div');
-      const title = titleEl ? titleEl.textContent.trim() : `Project ${id}`;
-      projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
-    }
-  });
-
-  // Strategy 3: Search innerText/innerHTML for project IDs in likely containers
-  const containers = document.querySelectorAll('section, article, div[role="listitem"], [class*="project"], [class*="card"], [class*="item"], [class*="row"]');
-  containers.forEach(container => {
-    const html = container.innerHTML;
-    const matches = html.matchAll(/projects\/(\d+)/g);
-    for (const match of matches) {
-      const id = match[1];
-      if (!seenIds.has(id)) {
-        seenIds.add(id);
-        // Try to find a nearby title
-        const titleEl = container.querySelector('h1, h2, h3, h4, .title, [class*="title"], [class*="name"], span, p, div');
-        const title = titleEl ? titleEl.textContent.trim().substring(0, 100) : `Project ${id}`;
-        projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
-      }
-    }
-  });
-
-  // Strategy 4: Look for numeric IDs in any onclick or data attributes
-  const allElements = document.querySelectorAll('[onclick*="projects"], [data-href*="projects"], [data-url*="projects"]');
-  allElements.forEach(el => {
-    const attrs = ['onclick', 'data-href', 'data-url', 'data-link'];
-    for (const attr of attrs) {
-      const val = el.getAttribute(attr);
-      if (val) {
-        const match = val.match(/projects\/(\d+)/);
-        if (match) {
-          const id = match[1];
-          if (!seenIds.has(id)) {
-            seenIds.add(id);
-            const title = el.textContent.trim() || `Project ${id}`;
-            projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
-          }
-        }
-      }
-    }
-  });
-
-  return projects;
-}
-
 
 // Interceptor script to be injected into the page
 async function interceptAndClickDownload() {
