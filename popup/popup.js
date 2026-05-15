@@ -45,12 +45,35 @@ const elements = {
 async function initialize() {
   console.log('[Stitch Export] Initializing popup...');
 
+  // Setup event listeners first so they always work
+  setupEventListeners();
+
+  // Listen for batch progress messages from background
+  chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === 'batchProgress') {
+      if (currentState !== AppState.BATCH_EXPORT) {
+        setState(AppState.BATCH_EXPORT);
+      }
+      updateBatchProgressUI(request.current, request.total, request.message);
+    }
+  });
+
   // Check if batch export is currently running
   try {
     const batchState = await chrome.runtime.sendMessage({ action: 'getBatchExportState' });
     if (batchState && batchState.isRunning) {
       setState(AppState.BATCH_EXPORT);
-      updateBatchProgressUI(batchState.current, batchState.total, 'Resuming...');
+      
+      // If it was cancelled but still running
+      if (batchState.cancelled) {
+         updateBatchProgressUI(batchState.current, batchState.total, 'Cancelling... please wait for current task to finish.');
+         if(elements.cancelBatchButton) {
+            elements.cancelBatchButton.disabled = true;
+            elements.cancelBatchButton.textContent = 'Cancelling...';
+         }
+      } else {
+         updateBatchProgressUI(batchState.current, batchState.total, 'Resuming view...');
+      }
       return;
     }
   } catch (e) {
@@ -65,19 +88,6 @@ async function initialize() {
   } else {
     setState(AppState.NOT_ON_STITCH);
   }
-
-  // Setup event listeners
-  setupEventListeners();
-
-  // Listen for batch progress messages from background
-  chrome.runtime.onMessage.addListener((request) => {
-    if (request.action === 'batchProgress') {
-      if (currentState !== AppState.BATCH_EXPORT) {
-        setState(AppState.BATCH_EXPORT);
-      }
-      updateBatchProgressUI(request.current, request.total, request.message);
-    }
-  });
 }
 
 // Check if current tab is on Stitch
@@ -99,6 +109,9 @@ async function checkIfOnStitchPage() {
 
 // Setup event listeners
 function setupEventListeners() {
+  document.getElementById('popoutButton')?.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html') });
+  });
   elements.exportButton?.addEventListener('click', handleExport);
   elements.exportAllButton?.addEventListener('click', handleExportAll);
   elements.exportAllButtonNotOnStitch?.addEventListener('click', handleExportAll);
@@ -250,8 +263,12 @@ async function handleExportAll() {
 // Handle cancel batch export
 async function handleCancelBatch() {
   try {
+    if (elements.cancelBatchButton) {
+       elements.cancelBatchButton.disabled = true;
+       elements.cancelBatchButton.textContent = 'Cancelling...';
+    }
     await chrome.runtime.sendMessage({ action: 'cancelBatchExport' });
-    updateBatchProgressUI(0, 0, 'Cancelling...');
+    updateBatchProgressUI(0, 0, 'Cancelling... (waiting for current tab to finish)');
   } catch (e) {
     console.error('[Stitch Export] Cancel error:', e);
   }

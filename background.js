@@ -715,7 +715,7 @@ async function exportSingleProject(project, format, options) {
     await waitForTabLoad(tab.id);
 
     // Wait for iframe content to load
-    await delay(5000);
+    await delay(12000); // Wait 12s for full design load
 
     let lastError = null;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -827,9 +827,15 @@ async function waitForTabLoad(tabId) {
   });
 }
 
-// Promise-based delay
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+// Promise-based delay that also checks for cancellation
+async function delay(ms) {
+  const steps = Math.ceil(ms / 200);
+  for(let i=0; i<steps; i++) {
+    if (batchExportState.cancelled) {
+       return Promise.reject(new Error("Export cancelled by user"));
+    }
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
 }
 
 console.log('[Stitch Export] Background script loaded');
