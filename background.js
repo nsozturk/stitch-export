@@ -666,6 +666,137 @@ function extractProjectListFromPage() {
   return projects;
 }
 
+
+// Interceptor script to be injected into the page
+async function interceptAndClickDownload() {
+  return new Promise((resolve, reject) => {
+    // Only run in the frame that has the app content
+    // Usually the iframe contains the actual app
+    
+    // Inject the interceptor into the page context
+    const script = document.createElement('script');
+    script.textContent = `
+      (function() {
+        if (window.__stitchInterceptorInstalled) return;
+        window.__stitchInterceptorInstalled = true;
+        
+        window.__stitchInterceptedBlob = null;
+        window.__stitchInterceptedFilename = null;
+        
+        const originalClick = HTMLAnchorElement.prototype.click;
+        HTMLAnchorElement.prototype.click = function() {
+          if (this.download && (this.href.startsWith('blob:') || this.href.startsWith('data:'))) {
+            console.log('[Stitch Interceptor] Caught download:', this.download);
+            window.__stitchInterceptedFilename = this.download;
+            
+            fetch(this.href).then(r => r.blob()).then(blob => {
+               const reader = new FileReader();
+               reader.onload = () => {
+                  window.__stitchInterceptedBlob = reader.result;
+                  document.dispatchEvent(new CustomEvent('StitchDownloadReady'));
+               };
+               reader.readAsDataURL(blob);
+            }).catch(e => {
+               document.documentElement.setAttribute('data-stitch-error', e.message);
+               document.dispatchEvent(new CustomEvent('StitchDownloadError'));
+            });
+            return; // Prevent native download
+          }
+          return originalClick.apply(this, arguments);
+        };
+        console.log('[Stitch Interceptor] Installed');
+      })();
+    `;
+    document.documentElement.appendChild(script);
+    script.remove();
+
+    // Listen for the success event
+    document.addEventListener('StitchDownloadReady', () => {
+      const getterScript = document.createElement('script');
+      getterScript.textContent = `
+        document.documentElement.setAttribute('data-stitch-b64', window.__stitchInterceptedBlob);
+        document.documentElement.setAttribute('data-stitch-filename', window.__stitchInterceptedFilename);
+      `;
+      document.documentElement.appendChild(getterScript);
+      getterScript.remove();
+
+      const b64 = document.documentElement.getAttribute('data-stitch-b64');
+      const filename = document.documentElement.getAttribute('data-stitch-filename');
+      
+      resolve({ success: true, data: b64, filename: filename });
+    });
+
+    document.addEventListener('StitchDownloadError', () => {
+      reject(new Error(document.documentElement.getAttribute('data-stitch-error')));
+    });
+
+    // Start UI interaction
+    setTimeout(triggerDownloadClicks, 1000);
+
+    function triggerDownloadClicks() {
+      // Find hamburger menu and click it
+      const buttons = Array.from(document.querySelectorAll('button'));
+      let menuBtn = buttons.find(b => {
+        // Look for typical menu buttons: top-left corner, SVG icons
+        const rect = b.getBoundingClientRect();
+        const isTopLeft = rect.top >= 0 && rect.top < 100 && rect.left >= 0 && rect.left < 100;
+        const hasSvg = b.querySelector('svg');
+        // The screenshot shows a button with 3 horizontal lines
+        return isTopLeft && hasSvg;
+      });
+
+      if (!menuBtn) {
+         // Fallback to searching by SVG path (hamburger menu)
+         const svgs = document.querySelectorAll('svg path');
+         for (const path of svgs) {
+            const d = path.getAttribute('d');
+            // Check if it's a hamburger menu (multiple horizontal lines)
+            if (d && (d.includes('M4.484') || d.includes('v-7.5') || d.includes('M2.75 16'))) {
+               let target = path;
+               while(target && target.tagName !== 'BUTTON') {
+                 target = target.parentElement;
+               }
+               if (target) { menuBtn = target; break; }
+            }
+         }
+      }
+
+      if (menuBtn) {
+        console.log('[Stitch Extractor] Clicking menu button');
+        menuBtn.click();
+        
+        // Wait for menu to open and find "Download Project"
+        setTimeout(() => {
+          const allEls = Array.from(document.querySelectorAll('*'));
+          let dBtn = allEls.find(el => {
+            return el.childNodes.length === 1 && 
+                   el.textContent.trim() === 'Download Project';
+          });
+
+          if (dBtn) {
+            console.log('[Stitch Extractor] Clicking Download Project');
+            let target = dBtn;
+            while(target && target.tagName !== 'BUTTON' && target.tagName !== 'LI') {
+                target = target.parentElement;
+            }
+            (target || dBtn).click();
+            
+            // Wait 10 seconds for the download to trigger, otherwise fail
+            setTimeout(() => {
+               reject(new Error("Download did not start within 10 seconds. Check if ZIP generation takes longer."));
+            }, 10000);
+            
+          } else {
+            reject(new Error("Download Project button not found in menu"));
+          }
+        }, 1500); // Wait 1.5s for menu animation
+      } else {
+        reject(new Error("Hamburger menu button not found"));
+      }
+    }
+  });
+}
+
 // Export a single project by opening it in a temporary tab
 async function exportSingleProject(project, format, options) {
   const tab = await chrome.tabs.create({
@@ -680,47 +811,35 @@ async function exportSingleProject(project, format, options) {
     // Wait for iframe content to load
     await delay(5000);
 
-    // Try extraction (may need retries if iframe is slow)
     let lastError = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) {
         await delay(3000);
       }
 
+      // Execute our interceptor in all frames (since Stitch runs in an iframe)
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id, allFrames: true },
-        func: (fmt, opts) => {
-          try {
-            if (typeof StitchExtractor === 'undefined') {
-              return { success: false, error: 'StitchExtractor not loaded' };
-            }
-
-            const data = StitchExtractor.extractConversation();
-            if (!data || !data.messages || data.messages.length === 0) {
-              return { success: false, error: 'No conversation data found' };
-            }
-
-            const formatted = StitchFormatters.format(data, fmt, opts);
-            const filename = StitchFormatters.generateFilename(data, fmt);
-
-            return {
-              success: true,
-              data: formatted,
-              filename,
-              projectId: data.projectId,
-              projectTitle: data.projectTitle
-            };
-          } catch (err) {
-            return { success: false, error: err.message };
-          }
-        },
-        args: [format, options]
+        func: interceptAndClickDownload
       });
 
-      // Find first successful result from any frame
+      // Find successful result
       for (const result of results) {
         if (result.result && result.result.success) {
-          return result.result;
+          // The data is a base64 string: "data:application/zip;base64,UEsDBB..."
+          // We need to strip the prefix for JSZip
+          let b64Data = result.result.data;
+          if (b64Data.includes('base64,')) {
+            b64Data = b64Data.split('base64,')[1];
+          }
+          
+          return {
+            success: true,
+            data: b64Data, // raw base64 zip data
+            filename: result.result.filename || `project-${project.id}.zip`,
+            projectId: project.id,
+            isNativeZip: true
+          };
         }
         if (result.result && result.result.error) {
           lastError = result.result.error;
@@ -728,7 +847,7 @@ async function exportSingleProject(project, format, options) {
       }
     }
 
-    return { success: false, error: lastError || 'No data extracted after retries' };
+    return { success: false, error: lastError || 'Download button not found or intercepted' };
 
   } finally {
     try {
@@ -742,13 +861,19 @@ async function exportSingleProject(project, format, options) {
 // Create a ZIP archive from all export results
 async function createZipFromResults(results, format) {
   const zip = new JSZip();
-  const folderName = `stitch-exports-${format}-${new Date().toISOString().split('T')[0]}`;
+  const folderName = `stitch-all-projects-${new Date().toISOString().split('T')[0]}`;
   const folder = zip.folder(folderName);
 
   for (const result of results) {
-    const filename = result.filename || `stitch-export-${result.projectId}-${format}.json`;
-    const content = JSON.stringify(result.data, null, 2);
-    folder.file(filename, content);
+    if (result.isNativeZip) {
+      // It's already a zip file from native download, add it as a binary file
+      folder.file(result.filename, result.data, { base64: true });
+    } else {
+      // Fallback for old json data
+      const filename = result.filename || `stitch-export-${result.projectId}-${format}.json`;
+      const content = JSON.stringify(result.data, null, 2);
+      folder.file(filename, content);
+    }
   }
 
   // Generate base64
