@@ -29,6 +29,10 @@ const elements = {
   exportButton: document.getElementById('exportButton'),
   exportAllButton: document.getElementById('exportAllButton'),
   exportLinksButton: document.getElementById('exportLinksButton'),
+
+
+
+  exportLinksButtonNotOnStitch: document.getElementById('exportLinksButtonNotOnStitch'),
   exportAllButtonNotOnStitch: document.getElementById('exportAllButtonNotOnStitch'),
   copyButton: document.getElementById('copyButton'),
   backButton: document.getElementById('backButton'),
@@ -52,10 +56,26 @@ async function initialize() {
   // Listen for batch progress messages from background
   chrome.runtime.onMessage.addListener((request) => {
     if (request.action === 'batchProgress') {
+      // Ignore progress updates if we already moved to success or error state
+      if (currentState === AppState.ERROR || currentState === AppState.SUCCESS) {
+         return;
+      }
       if (currentState !== AppState.BATCH_EXPORT) {
         setState(AppState.BATCH_EXPORT);
       }
       updateBatchProgressUI(request.current, request.total, request.message);
+      
+      // If it's a cancelled message, let's explicitly enable a "Back" button so they can leave the stuck screen
+      if (request.message === 'Cancelled.' || request.message.includes('Error')) {
+         if (elements.cancelBatchButton) {
+            elements.cancelBatchButton.disabled = false;
+            elements.cancelBatchButton.textContent = 'Go Back';
+            // We temporarily override the click handler just to go back
+            elements.cancelBatchButton.onclick = () => {
+               setState(AppState.READY);
+            };
+         }
+      }
     }
   });
 
@@ -70,7 +90,7 @@ async function initialize() {
          updateBatchProgressUI(batchState.current, batchState.total, 'Cancelled by user');
          if(elements.cancelBatchButton) {
             elements.cancelBatchButton.disabled = true;
-            elements.cancelBatchButton.textContent = 'Cancelling...';
+            elements.cancelBatchButton.textContent = 'Cancelled by user';
          }
       } else {
          updateBatchProgressUI(batchState.current, batchState.total, 'Resuming view...');
@@ -116,6 +136,8 @@ function setupEventListeners() {
   elements.exportButton?.addEventListener('click', handleExport);
   elements.exportAllButton?.addEventListener('click', handleExportAll);
   elements.exportAllButtonNotOnStitch?.addEventListener('click', handleExportAll);
+  elements.exportLinksButton?.addEventListener('click', handleExportLinks);
+  elements.exportLinksButtonNotOnStitch?.addEventListener('click', handleExportLinks);
   elements.exportLinksButton?.addEventListener('click', handleExportLinks);
   elements.copyButton?.addEventListener('click', handleCopyToClipboard);
   elements.backButton?.addEventListener('click', () => setState(AppState.READY));
@@ -249,6 +271,38 @@ async function handleExportLinks() {
     if (elements.exportLinksButton) {
       elements.exportLinksButton.disabled = false;
       elements.exportLinksButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"/><path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243L6.586 4.672z"/></svg> Extract All Links (Debug)`;
+    }
+  }
+}
+
+// Handle export links (debug)
+async function handleExportLinks() {
+  const btn1 = elements.exportLinksButton;
+  const btn2 = elements.exportLinksButtonNotOnStitch;
+  const activeBtn = btn1 && btn1.offsetParent !== null ? btn1 : btn2;
+
+  try {
+    if (activeBtn) {
+      activeBtn.innerHTML = 'Extracting...';
+      activeBtn.disabled = true;
+    }
+
+    const result = await chrome.runtime.sendMessage({ action: 'exportProjectLinks' });
+
+    if (result && result.success) {
+      updateSuccessMessage(`Successfully exported ${result.count} project links!`);
+      setTimeout(() => setState(AppState.SUCCESS), 500);
+    } else {
+      throw new Error(result?.error || 'Failed to export links');
+    }
+  } catch (error) {
+    console.error('[Stitch Export] Export links error:', error);
+    updateErrorMessage(error.message || 'Failed to export links');
+    setState(AppState.ERROR);
+  } finally {
+    if (activeBtn) {
+      activeBtn.disabled = false;
+      activeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"/><path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243L6.586 4.672z"/></svg> Extract All Links (Debug)`;
     }
   }
 }
