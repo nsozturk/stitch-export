@@ -28,6 +28,7 @@ const states = {
 const elements = {
   exportButton: document.getElementById('exportButton'),
   exportAllButton: document.getElementById('exportAllButton'),
+  exportLinksButton: document.getElementById('exportLinksButton'),
   exportAllButtonNotOnStitch: document.getElementById('exportAllButtonNotOnStitch'),
   copyButton: document.getElementById('copyButton'),
   backButton: document.getElementById('backButton'),
@@ -115,6 +116,7 @@ function setupEventListeners() {
   elements.exportButton?.addEventListener('click', handleExport);
   elements.exportAllButton?.addEventListener('click', handleExportAll);
   elements.exportAllButtonNotOnStitch?.addEventListener('click', handleExportAll);
+  elements.exportLinksButton?.addEventListener('click', handleExportLinks);
   elements.copyButton?.addEventListener('click', handleCopyToClipboard);
   elements.backButton?.addEventListener('click', () => setState(AppState.READY));
   elements.retryButton?.addEventListener('click', () => setState(AppState.READY));
@@ -220,6 +222,34 @@ async function handleExport() {
     console.error('[Stitch Export] Export error:', error);
     setState(AppState.ERROR);
     updateErrorMessage(error.message || 'An unexpected error occurred');
+  }
+}
+
+
+// Handle export links (debug)
+async function handleExportLinks() {
+  try {
+    const originalText = elements.exportLinksButton.innerHTML;
+    elements.exportLinksButton.innerHTML = 'Extracting...';
+    elements.exportLinksButton.disabled = true;
+
+    const result = await chrome.runtime.sendMessage({ action: 'exportProjectLinks' });
+
+    if (result && result.success) {
+      updateSuccessMessage(`Successfully exported ${result.count} project links!`);
+      setTimeout(() => setState(AppState.SUCCESS), 500);
+    } else {
+      throw new Error(result?.error || 'Failed to export links');
+    }
+  } catch (error) {
+    console.error('[Stitch Export] Export links error:', error);
+    updateErrorMessage(error.message || 'Failed to export links');
+    setState(AppState.ERROR);
+  } finally {
+    if (elements.exportLinksButton) {
+      elements.exportLinksButton.disabled = false;
+      elements.exportLinksButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"/><path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243L6.586 4.672z"/></svg> Extract All Links (Debug)`;
+    }
   }
 }
 

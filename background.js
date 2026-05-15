@@ -335,6 +335,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  
+  if (request.action === 'exportProjectLinks') {
+    handleExportProjectLinks().then(result => {
+      sendResponse(result);
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
+    });
+    return true;
+  }
+
   if (request.action === 'exportAllProjects') {
     handleExportAllProjects(request.format, request.options)
       .then(result => sendResponse(result))
@@ -845,3 +855,32 @@ async function delay(ms) {
 }
 
 console.log('[Stitch Export] Background script loaded');
+
+
+async function handleExportProjectLinks() {
+  try {
+    const projects = await fetchProjectList();
+    if (!projects || projects.length === 0) {
+      throw new Error('No projects found');
+    }
+
+    let txtContent = '';
+    for (const p of projects) {
+      txtContent += `${p.url}  # ${p.title}\n`;
+    }
+
+    const base64Data = btoa(unescape(encodeURIComponent(txtContent)));
+    const dataUrl = 'data:text/plain;base64,' + base64Data;
+
+    await chrome.downloads.download({
+      url: dataUrl,
+      filename: 'stitch-export-allproject-links.txt',
+      saveAs: true
+    });
+
+    return { success: true, count: projects.length };
+  } catch (err) {
+    console.error('[Stitch Export] Export links error:', err);
+    return { success: false, error: err.message };
+  }
+}
