@@ -523,7 +523,7 @@ async function fetchProjectList() {
           }
           
           const params = new URLSearchParams({
-            'f.req': '[[["A7f2qf","[null,null,1]",null,"9"]]]',
+            'f.req': '[[["A7f2qf","[]",null,"1"]]]',
             'at': tokenMatch[1]
           });
           
