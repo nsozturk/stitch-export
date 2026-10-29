@@ -772,11 +772,12 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
               meta.filename = meta.filename.replace(/\.html$/, `.${img.ext}`);
               return [uid, img.bytes];
             }
-            const resp = await fetch(meta.htmlUrl);
+            const resp = await fetchWithRetry(meta.htmlUrl);
             if (!resp.ok) return null;
             const html = await resp.text();
             if (includeScreenshots && meta.screenshotUrl) {
-              const shot = await fetchFullImage(meta.screenshotUrl);
+              // A failed picture must not drop the HTML it belongs to
+              const shot = await fetchFullImage(meta.screenshotUrl).catch(() => null);
               if (shot) {
                 meta.shotFilename = meta.filename.replace(/\.html$/, `.${shot.ext}`);
                 shots.push([uid, shot.bytes]);
@@ -1219,10 +1220,20 @@ function slugifyName(s, max) {
     .substring(0, max || 40);
 }
 
+// fetch with one retry: a single transient failure otherwise drops the file silently
+async function fetchWithRetry(url) {
+  try {
+    const resp = await fetch(url);
+    if (resp.ok) return resp;
+  } catch (e) { /* retry below */ }
+  await new Promise(r => setTimeout(r, 1000));
+  return fetch(url);
+}
+
 // Download an lh3 image at full size. A bare lh3 URL serves a 286px preview;
 // "=s0" returns the original resolution.
 async function fetchFullImage(url) {
-  const resp = await fetch(url.includes('=') ? url : `${url}=s0`);
+  const resp = await fetchWithRetry(url.includes('=') ? url : `${url}=s0`);
   if (!resp.ok) return null;
   const type = resp.headers.get('content-type') || '';
   const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
