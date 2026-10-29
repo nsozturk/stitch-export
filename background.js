@@ -983,13 +983,28 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
 
               // Default assistant fields
               let assistantText = '';
+              let designSystem = null;
               const generatedScreens = [];
               const suggestions = [];
 
               if (Array.isArray(turn[4])) {
-                // turn[4][1][1] = main assistant text response
+                // turn[4][1][1] = main assistant text response; some turns carry it at turn[4][0][1]
                 if (turn[4][1] && typeof turn[4][1][1] === 'string') {
                   assistantText = turn[4][1][1];
+                } else if (turn[4][0] && typeof turn[4][0][1] === 'string') {
+                  assistantText = turn[4][0][1];
+                }
+
+                // turn[4][0][3] = design system asset: ["assets/<id>", null, [name, null, markdown|null, tokens]]
+                const ds = turn[4][0] && turn[4][0][3];
+                if (Array.isArray(ds) && typeof ds[0] === 'string' && ds[0].startsWith('assets/')) {
+                  const body = Array.isArray(ds[2]) ? ds[2] : [];
+                  designSystem = {
+                    assetId: ds[0].split('/')[1],
+                    name: typeof body[0] === 'string' ? body[0] : '',
+                    markdown: typeof body[2] === 'string' ? body[2] : '',
+                    tokens: Array.isArray(body[3]) ? body[3] : null
+                  };
                 }
 
                 // turn[4][0][0][0][N] = generated screen instances for this turn
@@ -1017,6 +1032,7 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
                 user: { content: userContent },
                 assistant: {
                   content: assistantText,
+                  designSystem,
                   generatedScreens,
                   suggestions
                 }
@@ -1207,6 +1223,17 @@ async function createZipFromResults(results, format) {
       }
     }
 
+    // ---- design-systems/turn-NNN-{slug}.md : design system docs produced in chat ----
+    const designSystemFile = (turn) => {
+      const ds = turn.assistant && turn.assistant.designSystem;
+      if (!ds || !ds.markdown) return null;
+      return `design-systems/turn-${String(turn.index).padStart(3, '0')}-${slugify(ds.name, 40) || 'design-system'}.md`;
+    };
+    for (const turn of (result.turns || [])) {
+      const path = designSystemFile(turn);
+      if (path) projectFolder.file(path, turn.assistant.designSystem.markdown);
+    }
+
     // ---- chat.json : rich per-turn data with file refs ----
     const chatJson = {
       projectId: result.projectId,
@@ -1230,6 +1257,9 @@ async function createZipFromResults(results, format) {
           user: turn.user,
           assistant: {
             content: turn.assistant?.content || '',
+            designSystem: turn.assistant?.designSystem
+              ? { assetId: turn.assistant.designSystem.assetId, name: turn.assistant.designSystem.name, file: designSystemFile(turn), tokens: turn.assistant.designSystem.tokens }
+              : null,
             generatedScreens: (turn.assistant?.generatedScreens || []).map(s => {
               const meta = screenIndex.get(s.uid);
               return {
