@@ -165,6 +165,8 @@ Pick the role names yourself (e.g. `Human` / `Model`).
 
 ## Privacy
 
+Full policy: **[stitch-export.lamma.dev/privacy](https://stitch-export.lamma.dev/privacy)** · Terms: [stitch-export.lamma.dev/terms](https://stitch-export.lamma.dev/terms) · Support: [stitch-export.lamma.dev/support](https://stitch-export.lamma.dev/support)
+
 - **No external servers** — exports are local downloads only
 - **No analytics, no telemetry, no tracking**
 - The extension reads your existing Stitch login session via standard

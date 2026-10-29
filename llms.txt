@@ -21,4 +21,5 @@
 - [AGENTS.md](https://github.com/nsozturk/stitch-export/blob/main/AGENTS.md): code layout and Stitch RPC notes for coding agents
 - [GLOBAL_AGENT_RULE.md](https://github.com/nsozturk/stitch-export/blob/main/GLOBAL_AGENT_RULE.md): how an assistant should read an export
 - [CHANGELOG](https://github.com/nsozturk/stitch-export/blob/main/CHANGELOG.md)
+- [Privacy policy](https://stitch-export.lamma.dev/privacy)
 - [Releases](https://github.com/nsozturk/stitch-export/releases)
