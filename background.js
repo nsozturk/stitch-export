@@ -645,7 +645,8 @@ async function handleExportRequest(format, tab) {
 // ============================================================
 
 async function handleExportAllProjects(format, options = {}) {
-  batchExportState = {
+  // Local handle: a cancelled run that is still unwinding must not touch a newer run
+  const state = batchExportState = {
     isRunning: true,
     total: 0,
     current: 0,
@@ -664,7 +665,7 @@ async function handleExportAllProjects(format, options = {}) {
       url: 'https://stitch.withgoogle.com/',
       active: false
     });
-    batchExportState.currentTabId = workTab.id;
+    state.currentTabId = workTab.id;
     await waitForTabLoad(workTab.id);
     await delay(1500);
 
@@ -687,8 +688,8 @@ async function handleExportAllProjects(format, options = {}) {
     // Refresh badge cache with authoritative count
     _projectCountCache = { value: projects.length, fetchedAt: Date.now() };
 
-    batchExportState.total = projects.length;
-    batchExportState.projects = projects;
+    state.total = projects.length;
+    state.projects = projects;
 
     // Step 2: fire ALL ErneX + dNS8Mc API calls in the tab context with
     // internal parallelism (concurrency = API_CONCURRENCY). One big
@@ -730,7 +731,7 @@ async function handleExportAllProjects(format, options = {}) {
       }
       totalUniqueUrls += r._index.size;
     }
-    updateBatchProgress(`API done — ${apiOk.length}/${projects.length} projects, ${totalUniqueUrls} unique HTMLs. Downloading...`, 0, projects.length);
+    updateBatchProgress(`API done — ${apiOk.length}/${projects.length} projects, ${totalUniqueUrls} unique files. Downloading...`, 0, projects.length);
 
     // Step 3: download all HTMLs from contribution.usercontent.google.com in
     // the service worker, with HTML_CONCURRENCY parallel projects.
@@ -740,7 +741,7 @@ async function handleExportAllProjects(format, options = {}) {
 
     const worker = async () => {
       while (true) {
-        if (batchExportState.cancelled) return;
+        if (state.cancelled || state !== batchExportState) return;
         const idx = nextIdx++;
         if (idx >= apiOk.length) return;
         const r = apiOk[idx];
@@ -748,6 +749,15 @@ async function handleExportAllProjects(format, options = {}) {
         // Fetch each unique HTML URL once, in parallel within this project
         const fetches = [...r._index.entries()].map(async ([uid, meta]) => {
           try {
+            if (!meta.htmlUrl) {
+              // Image-only screen: store the picture itself
+              const resp = await fetch(meta.screenshotUrl);
+              if (!resp.ok) return null;
+              const type = resp.headers.get('content-type') || '';
+              const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
+              meta.filename = meta.filename.replace(/\.html$/, `.${ext}`);
+              return [uid, new Uint8Array(await resp.arrayBuffer())];
+            }
             const resp = await fetch(meta.htmlUrl);
             if (!resp.ok) return null;
             const html = await resp.text();
@@ -762,7 +772,7 @@ async function handleExportAllProjects(format, options = {}) {
           if (f) htmlByUid.push(f);
         }
 
-        batchExportState.results.push({
+        state.results.push({
           success: true,
           projectId: r.projectId,
           projectTitle: r.projectTitle,
@@ -772,7 +782,7 @@ async function handleExportAllProjects(format, options = {}) {
           htmlByUid
         });
         processed++;
-        batchExportState.current = processed;
+        state.current = processed;
         updateBatchProgress(`Downloaded ${processed}/${apiOk.length}: ${r.projectTitle || r.projectId} (${htmlByUid.length} files)`, processed, apiOk.length);
       }
     };
@@ -783,18 +793,18 @@ async function handleExportAllProjects(format, options = {}) {
     }
     await Promise.all(workers);
 
-    if (batchExportState.cancelled) {
+    if (state.cancelled || state !== batchExportState) {
       throw new Error('Export cancelled by user');
     }
 
     // Step 3: create ZIP
-    const exportedCount = batchExportState.results.length;
+    const exportedCount = state.results.length;
     if (exportedCount === 0) {
       throw new Error('No projects were successfully exported');
     }
 
-    updateBatchProgress(`Creating ZIP archive with ${exportedCount} projects...`, batchExportState.total, batchExportState.total);
-    const zipBase64 = await createZipFromResults(batchExportState.results, format);
+    updateBatchProgress(`Creating ZIP archive with ${exportedCount} projects...`, state.total, state.total);
+    const zipBase64 = await createZipFromResults(state.results, format);
 
     // Step 4: download
     const timestamp = new Date().toISOString().split('T')[0];
@@ -806,24 +816,28 @@ async function handleExportAllProjects(format, options = {}) {
       saveAs: true
     });
 
-    updateBatchProgress(`Done! Exported ${exportedCount}/${batchExportState.total} projects.`, batchExportState.total, batchExportState.total);
+    updateBatchProgress(`Done! Exported ${exportedCount}/${state.total} projects.`, state.total, state.total);
 
     return {
       success: true,
       exportedCount,
-      totalCount: batchExportState.total
+      totalCount: state.total
     };
 
   } catch (error) {
     console.error('[Stitch Export] Batch export error:', error);
-    updateBatchProgress(error.message === 'Export cancelled by user' ? 'Cancelled.' : `Error: ${error.message}`, batchExportState.current, batchExportState.total);
-    return { success: false, error: error.message };
+    // A cancel removes the work tab, so in-flight calls fail with tab errors; report them as a cancel
+    const message = state.cancelled ? 'Export cancelled by user' : error.message;
+    if (state === batchExportState) {
+      updateBatchProgress(state.cancelled ? 'Cancelled.' : `Error: ${message}`, state.current, state.total);
+    }
+    return { success: false, cancelled: state.cancelled, error: message };
   } finally {
-    batchExportState.isRunning = false;
+    state.isRunning = false;
     if (workTab) {
       try { await chrome.tabs.remove(workTab.id); } catch (e) {}
     }
-    batchExportState.currentTabId = null;
+    state.currentTabId = null;
   }
 }
 
@@ -905,10 +919,12 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
   const extractScreenInstance = (sc, fallbackKey) => {
     if (!Array.isArray(sc) || sc.length < 11) return null;
     const screenshotUrl = (sc[0] && sc[0][2]) || null;
-    const htmlUrl = sc[1] && sc[1][2];
+    let htmlUrl = sc[1] && sc[1][2];
     if (typeof htmlUrl !== 'string' || htmlUrl.indexOf('contribution.usercontent.google.com') === -1) {
-      return null;
+      htmlUrl = null;
     }
+    // Image-only screens (generated images) have no HTML file, only the picture
+    if (!htmlUrl && typeof screenshotUrl !== 'string') return null;
     const uid = (typeof sc[4] === 'string' && sc[4]) ? sc[4] : `noid-${fallbackKey}`;
     const name = (typeof sc[8] === 'string' && sc[8]) ? sc[8] : '';
     const screenPath = (typeof sc[10] === 'string') ? sc[10] : '';
@@ -1311,14 +1327,26 @@ async function waitForTabLoad(tabId) {
     return;
   }
 
-  return new Promise((resolve) => {
+  // Reject if the tab is closed (cancel, or the user closed it) so the run never hangs
+  return new Promise((resolve, reject) => {
+    const done = () => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      chrome.tabs.onRemoved.removeListener(onRemoved);
+    };
     const listener = (updatedTabId, changeInfo) => {
       if (updatedTabId === tabId && changeInfo.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(listener);
+        done();
         resolve();
       }
     };
+    const onRemoved = (removedTabId) => {
+      if (removedTabId === tabId) {
+        done();
+        reject(new Error(batchExportState.cancelled ? 'Export cancelled by user' : 'The Stitch tab was closed'));
+      }
+    };
     chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.onRemoved.addListener(onRemoved);
   });
 }
 

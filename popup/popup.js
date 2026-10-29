@@ -85,6 +85,9 @@ async function updateExportAllLabel() {
 
 // Initialize popup
 async function initialize() {
+  const versionLabel = document.getElementById('versionLabel');
+  if (versionLabel) versionLabel.textContent = `v${chrome.runtime.getManifest().version}`;
+
   console.log('[Stitch Export] Initializing popup...');
 
   // Setup event listeners first so they always work
@@ -122,19 +125,10 @@ async function initialize() {
   // Check if batch export is currently running
   try {
     const batchState = await chrome.runtime.sendMessage({ action: 'getBatchExportState' });
-    if (batchState && batchState.isRunning) {
+    // A cancelled run is only unwinding; don't trap the popup on it
+    if (batchState && batchState.isRunning && !batchState.cancelled) {
       setState(AppState.BATCH_EXPORT);
-      
-      // If it was cancelled but still running
-      if (batchState.cancelled) {
-         updateBatchProgressUI(batchState.current, batchState.total, 'Cancelled by user');
-         if(elements.cancelBatchButton) {
-            elements.cancelBatchButton.disabled = true;
-            elements.cancelBatchButton.textContent = 'Cancelled by user';
-         }
-      } else {
-         updateBatchProgressUI(batchState.current, batchState.total, 'Resuming view...');
-      }
+      updateBatchProgressUI(batchState.current, batchState.total, 'Resuming view...');
       return;
     }
   } catch (e) {
@@ -352,6 +346,12 @@ async function handleExportAll() {
   try {
     setState(AppState.BATCH_EXPORT);
     updateBatchProgressUI(0, 0, 'Starting batch export...');
+    // Reset the button a previous cancel turned into "Go Back"
+    if (elements.cancelBatchButton) {
+      elements.cancelBatchButton.disabled = false;
+      elements.cancelBatchButton.textContent = 'Cancel';
+      elements.cancelBatchButton.onclick = null;
+    }
 
     // Get selected format
     const format = getSelectedFormat();
@@ -373,6 +373,8 @@ async function handleExportAll() {
     if (result && result.success) {
       setState(AppState.SUCCESS);
       updateSuccessMessage(`Successfully exported ${result.exportedCount}/${result.totalCount} projects to ZIP!`);
+    } else if (result && result.cancelled) {
+      setState((await checkIfOnStitchPage()) ? AppState.READY : AppState.NOT_ON_STITCH);
     } else {
       throw new Error(result?.error || 'Batch export failed');
     }

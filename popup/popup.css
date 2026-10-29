@@ -368,6 +368,16 @@ footer p {
 .batch-progress-count {
   font-size: 12px;
   color: #999;
+  margin-bottom: 12px;
+}
+
+.batch-note {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #50384E;
+  background: #f4eef4;
+  border-radius: 6px;
+  padding: 8px 10px;
   margin-bottom: 16px;
 }
 
