@@ -79,7 +79,7 @@ const StitchDownloader = {
    * Show download success notification
    * @param {string} filename - Downloaded filename
    */
-  showSuccessNotification(filename) {
+  showSuccessNotification(filename, title = 'Export successful!') {
     // Create a simple toast notification
     const notification = document.createElement('div');
     notification.style.cssText = `
@@ -104,7 +104,7 @@ const StitchDownloader = {
           <circle cx="10" cy="10" r="8"/>
         </svg>
         <div>
-          <strong>Export successful!</strong>
+          <strong>${title}</strong>
           <div style="font-size: 12px; opacity: 0.9; margin-top: 2px;">${filename}</div>
         </div>
       </div>

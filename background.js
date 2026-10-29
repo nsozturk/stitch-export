@@ -3,7 +3,7 @@
  * Handles context menu, batch export, and background tasks
  */
 
-importScripts('libs/jszip.min.js');
+importScripts('libs/jszip.min.js', 'utils/formatters.js');
 
 // Create context menu on installation
 chrome.runtime.onInstalled.addListener(() => {
@@ -556,6 +556,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'exportProject') {
+    // Single project ZIP: same pipeline as Export All, limited to one project
+    handleExportAllProjects(request.format, request.options, request.projectId)
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
   if (request.action === 'exportAllProjects') {
     handleExportAllProjects(request.format, request.options)
       .then(result => sendResponse(result))
@@ -644,7 +652,7 @@ async function handleExportRequest(format, tab) {
 // needed — URLs are self-authenticating).
 // ============================================================
 
-async function handleExportAllProjects(format, options = {}) {
+async function handleExportAllProjects(format, options = {}, onlyProjectId = null) {
   // Local handle: a cancelled run that is still unwinding must not touch a newer run
   const state = batchExportState = {
     isRunning: true,
@@ -680,13 +688,19 @@ async function handleExportAllProjects(format, options = {}) {
       throw new Error(init?.error || 'Failed to initialize batch export');
     }
 
-    const projects = init.projects;
-    if (!projects || projects.length === 0) {
+    if (!init.projects || init.projects.length === 0) {
       throw new Error('No projects found. Make sure you are logged into stitch.withgoogle.com');
     }
 
     // Refresh badge cache with authoritative count
-    _projectCountCache = { value: projects.length, fetchedAt: Date.now() };
+    _projectCountCache = { value: init.projects.length, fetchedAt: Date.now() };
+
+    const projects = onlyProjectId ? init.projects.filter(p => p.id === onlyProjectId) : init.projects;
+    if (projects.length === 0) {
+      throw new Error('This project was not found in your Stitch account');
+    }
+    // A single project also gets a picture of every HTML screen; for all projects that would bloat the ZIP
+    const includeScreenshots = !!onlyProjectId;
 
     state.total = projects.length;
     state.projects = projects;
@@ -747,22 +761,27 @@ async function handleExportAllProjects(format, options = {}) {
         const r = apiOk[idx];
 
         // Fetch each unique HTML URL once, in parallel within this project
+        const shots = [];
         const fetches = [...r._index.entries()].map(async ([uid, meta]) => {
           try {
             if (!meta.htmlUrl) {
               // Image-only screen: store the picture itself. A bare lh3 URL serves a
               // 286px preview; "=s0" returns the original resolution.
-              const imgUrl = meta.screenshotUrl.includes('=') ? meta.screenshotUrl : `${meta.screenshotUrl}=s0`;
-              const resp = await fetch(imgUrl);
-              if (!resp.ok) return null;
-              const type = resp.headers.get('content-type') || '';
-              const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
-              meta.filename = meta.filename.replace(/\.html$/, `.${ext}`);
-              return [uid, new Uint8Array(await resp.arrayBuffer())];
+              const img = await fetchFullImage(meta.screenshotUrl);
+              if (!img) return null;
+              meta.filename = meta.filename.replace(/\.html$/, `.${img.ext}`);
+              return [uid, img.bytes];
             }
             const resp = await fetch(meta.htmlUrl);
             if (!resp.ok) return null;
             const html = await resp.text();
+            if (includeScreenshots && meta.screenshotUrl) {
+              const shot = await fetchFullImage(meta.screenshotUrl);
+              if (shot) {
+                meta.shotFilename = meta.filename.replace(/\.html$/, `.${shot.ext}`);
+                shots.push([uid, shot.bytes]);
+              }
+            }
             return [uid, html];
           } catch (e) {
             return null;
@@ -781,7 +800,8 @@ async function handleExportAllProjects(format, options = {}) {
           finalScreens: r.screens || [],
           turns: r.turns || [],
           screenIndex: [...r._index.entries()],
-          htmlByUid
+          htmlByUid,
+          shotByUid: shots
         });
         processed++;
         state.current = processed;
@@ -806,7 +826,7 @@ async function handleExportAllProjects(format, options = {}) {
     }
 
     updateBatchProgress(`Creating ZIP archive with ${exportedCount} projects...`, state.total, state.total);
-    const zipBase64 = await createZipFromResults(state.results, format);
+    const zipBase64 = await createZipFromResults(state.results, format, options);
 
     // Step 4: download
     const timestamp = new Date().toISOString().split('T')[0];
@@ -814,7 +834,9 @@ async function handleExportAllProjects(format, options = {}) {
 
     await chrome.downloads.download({
       url: dataUrl,
-      filename: `stitch-all-exports-${format}-${timestamp}.zip`,
+      filename: onlyProjectId
+        ? `stitch-${slugifyName(projects[0].title, 50) || projects[0].id}-${format}-${timestamp}.zip`
+        : `stitch-all-exports-${format}-${timestamp}.zip`,
       saveAs: true
     });
 
@@ -1189,16 +1211,54 @@ async function fetchProjectList() {
 //     chat.json                              ← rich per-turn data with file refs
 //     screens/{name}_{uid}.html              ← final state (ErneX)
 //     history/turn-NNN-{slug}/{name}_{uid}.html  ← screens generated in that turn
-async function createZipFromResults(results, format) {
-  const zip = new JSZip();
-  const rootName = `stitch-all-projects-${new Date().toISOString().split('T')[0]}`;
-  const root = zip.folder(rootName);
-
-  const slugify = (s, max) => (s || '')
+function slugifyName(s, max) {
+  return (s || '')
     .replace(/[^a-zA-Z0-9 \-]/g, '')
     .trim()
     .replace(/\s+/g, '_')
     .substring(0, max || 40);
+}
+
+// Download an lh3 image at full size. A bare lh3 URL serves a 286px preview;
+// "=s0" returns the original resolution.
+async function fetchFullImage(url) {
+  const resp = await fetch(url.includes('=') ? url : `${url}=s0`);
+  if (!resp.ok) return null;
+  const type = resp.headers.get('content-type') || '';
+  const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
+  return { ext, bytes: new Uint8Array(await resp.arrayBuffer()) };
+}
+
+// Turn the per-turn chat into the message list StitchFormatters expects
+function turnsToConversation(result) {
+  const messages = [];
+  for (const turn of (result.turns || [])) {
+    const user = turn.user?.content || '';
+    if (user) messages.push({ role: 'user', content: user, timestamp: null });
+    const a = turn.assistant || {};
+    const parts = [];
+    if (a.content) parts.push(a.content);
+    if (a.designSystem) parts.push(`[Design system: ${a.designSystem.name}]` + (a.designSystem.markdown ? `\n\n${a.designSystem.markdown}` : ''));
+    const names = (a.generatedScreens || []).map(s => s.name).filter(Boolean);
+    if (names.length) parts.push(`[Generated Screens: ${names.join(', ')}]`);
+    if (parts.length) messages.push({ role: 'assistant', content: parts.join('\n\n'), timestamp: null });
+  }
+  return {
+    projectId: result.projectId,
+    projectTitle: result.projectTitle,
+    timestamp: new Date().toISOString(),
+    messages
+  };
+}
+
+async function createZipFromResults(results, format, options = {}) {
+  const zip = new JSZip();
+  const rootName = results.length === 1
+    ? `stitch-project-${new Date().toISOString().split('T')[0]}`
+    : `stitch-all-projects-${new Date().toISOString().split('T')[0]}`;
+  const root = zip.folder(rootName);
+
+  const slugify = slugifyName;
 
   for (const result of results) {
     const safeProjectName = slugify(result.projectTitle || result.projectId || 'unknown', 60) || 'project';
@@ -1206,6 +1266,7 @@ async function createZipFromResults(results, format) {
 
     const screenIndex = new Map(result.screenIndex || []);
     const htmlByUid = new Map(result.htmlByUid || []);
+    const shotByUid = new Map(result.shotByUid || []);
 
     // ---- screens/ : final state from ErneX ----
     const screensFolder = projectFolder.folder('screens');
@@ -1214,6 +1275,7 @@ async function createZipFromResults(results, format) {
       const content = htmlByUid.get(s.uid);
       if (meta && content) {
         screensFolder.file(meta.filename, content);
+        if (meta.shotFilename && shotByUid.has(s.uid)) screensFolder.file(meta.shotFilename, shotByUid.get(s.uid));
       }
     }
 
@@ -1237,6 +1299,7 @@ async function createZipFromResults(results, format) {
         const content = htmlByUid.get(s.uid);
         if (meta && content) {
           turnFolder.file(meta.filename, content);
+          if (meta.shotFilename && shotByUid.has(s.uid)) turnFolder.file(meta.shotFilename, shotByUid.get(s.uid));
         }
       }
     }
@@ -1264,6 +1327,7 @@ async function createZipFromResults(results, format) {
           uid: s.uid,
           screenPath: s.screenPath,
           file: meta ? `screens/${meta.filename}` : null,
+          screenshotFile: meta && meta.shotFilename && shotByUid.has(s.uid) ? `screens/${meta.shotFilename}` : null,
           screenshotUrl: s.screenshotUrl
         };
       }),
@@ -1285,6 +1349,7 @@ async function createZipFromResults(results, format) {
                 uid: s.uid,
                 screenPath: s.screenPath,
                 file: meta ? `history/${tfn}/${meta.filename}` : null,
+                screenshotFile: meta && meta.shotFilename && shotByUid.has(s.uid) ? `history/${tfn}/${meta.shotFilename}` : null,
                 screenshotUrl: s.screenshotUrl
               };
             }),
@@ -1294,6 +1359,17 @@ async function createZipFromResults(results, format) {
       })
     };
     projectFolder.file('chat.json', JSON.stringify(chatJson, null, 2));
+
+    // ---- conversation.<format>.json : the chat in the format picked in the popup ----
+    const conversation = turnsToConversation(result);
+    if (conversation.messages.length > 0) {
+      try {
+        const formatted = StitchFormatters.format(conversation, format || 'claude', options);
+        projectFolder.file(`conversation.${format || 'claude'}.json`, JSON.stringify(formatted, null, 2));
+      } catch (e) {
+        console.warn('[Stitch Export] Could not format conversation:', e.message);
+      }
+    }
   }
 
   return await zip.generateAsync({ type: 'base64' });

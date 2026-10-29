@@ -90,6 +90,39 @@ const StitchFormatters = {
   },
 
   /**
+   * Convert to custom format with user-chosen role names
+   * @param {Object} conversationData - Raw extracted conversation data
+   * @param {Object} options - { userRole, assistantRole }
+   * @returns {Object} Custom formatted data
+   */
+  toCustomFormat(conversationData, options = {}) {
+    if (!conversationData || !conversationData.messages) {
+      throw new Error('Invalid conversation data');
+    }
+    const roles = {
+      user: options.userRole || 'user',
+      assistant: options.assistantRole || 'assistant'
+    };
+
+    return {
+      messages: conversationData.messages.map(msg => ({
+        role: roles[msg.role] || msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp
+      })),
+      metadata: {
+        source: 'stitch.withgoogle.com',
+        project_id: conversationData.projectId,
+        project_title: conversationData.projectTitle,
+        export_date: new Date().toISOString(),
+        format: 'custom',
+        roles,
+        message_count: conversationData.messages.length
+      }
+    };
+  },
+
+  /**
    * Format conversation data based on selected format type
    * @param {Object} conversationData - Raw extracted conversation data
    * @param {string} formatType - Format type ('claude', 'openai', or 'simple')

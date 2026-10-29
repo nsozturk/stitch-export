@@ -188,6 +188,7 @@ function setupEventListeners() {
   });
   elements.exportButton?.addEventListener('click', handleExport);
   elements.exportAllButton?.addEventListener('click', handleExportAll);
+  document.getElementById('exportProjectButton')?.addEventListener('click', handleExportProject);
   elements.exportAllButtonNotOnStitch?.addEventListener('click', handleExportAll);
   elements.exportLinksButton?.addEventListener('click', handleExportLinks);
   elements.exportLinksButtonNotOnStitch?.addEventListener('click', handleExportLinks);
@@ -360,8 +361,23 @@ async function handleExportLinks() {
   }
 }
 
-// Handle export all projects action
-async function handleExportAll() {
+// Handle export of the project open in the active tab as one ZIP
+async function handleExportProject() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const match = tab && tab.url && tab.url.match(/\/projects\/(\d+)/);
+  if (!match) {
+    setState(AppState.ERROR);
+    updateErrorMessage('Open a Stitch project to export it');
+    return;
+  }
+  return handleExportAll(match[1]);
+}
+
+// Handle export all projects action (or a single project when projectId is given)
+async function handleExportAll(projectId) {
+  if (typeof projectId !== 'string') projectId = null;
+  const batchTitle = document.getElementById('batchTitle');
+  if (batchTitle) batchTitle.textContent = projectId ? 'Exporting This Project' : 'Exporting All Projects';
   try {
     setState(AppState.BATCH_EXPORT);
     updateBatchProgressUI(0, 0, 'Starting batch export...');
@@ -383,15 +399,15 @@ async function handleExportAll() {
     }
 
     // Start batch export in background
-    const result = await chrome.runtime.sendMessage({
-      action: 'exportAllProjects',
-      format,
-      options
-    });
+    const result = await chrome.runtime.sendMessage(projectId
+      ? { action: 'exportProject', projectId, format, options }
+      : { action: 'exportAllProjects', format, options });
 
     if (result && result.success) {
       setState(AppState.SUCCESS);
-      updateSuccessMessage(`Successfully exported ${result.exportedCount}/${result.totalCount} projects to ZIP!`);
+      updateSuccessMessage(projectId
+        ? 'Project exported to ZIP!'
+        : `Successfully exported ${result.exportedCount}/${result.totalCount} projects to ZIP!`);
     } else if (result && result.cancelled) {
       setState((await checkIfOnStitchPage()) ? AppState.READY : AppState.NOT_ON_STITCH);
     } else {
@@ -687,6 +703,15 @@ async function downloadFile(data, filename) {
 }
 
 // Get selected export format
+// One format picker, shown in whichever state is visible (project page or dashboard)
+function moveFormatSelection(stateEl) {
+  const picker = document.getElementById('formatSelection');
+  const actions = stateEl && stateEl.querySelector('.actions');
+  if (picker && actions && picker.nextElementSibling !== actions) {
+    stateEl.insertBefore(picker, actions);
+  }
+}
+
 function getSelectedFormat() {
   const selectedRadio = document.querySelector('input[name="format"]:checked');
   return selectedRadio ? selectedRadio.value : 'claude';
@@ -706,9 +731,11 @@ function setState(state) {
     case AppState.NOT_ON_STITCH:
       states.notOnStitch?.classList.remove('hidden');
       updateNotOnProjectMessage();
+      moveFormatSelection(states.notOnStitch);
       break;
     case AppState.READY:
       states.ready?.classList.remove('hidden');
+      moveFormatSelection(states.ready);
       break;
     case AppState.LOADING:
       states.loading?.classList.remove('hidden');

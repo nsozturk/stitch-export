@@ -276,7 +276,8 @@
 
           <div class="dialog-footer">
             <button class="btn btn-secondary cancel-btn">Cancel</button>
-            <button class="btn btn-primary export-btn">Export</button>
+            <button class="btn btn-secondary export-zip-btn" title="Screens, images, design systems and the conversation in one ZIP">Export ZIP (with images)</button>
+            <button class="btn btn-primary export-btn">Export JSON</button>
           </div>
         </div>
       </div>
@@ -292,6 +293,7 @@
     formatDialog.querySelector('.close-btn').addEventListener('click', closeDialog);
     formatDialog.querySelector('.cancel-btn').addEventListener('click', closeDialog);
     formatDialog.querySelector('.export-btn').addEventListener('click', executeExport);
+    formatDialog.querySelector('.export-zip-btn').addEventListener('click', executeZipExport);
     formatDialog.querySelector('.dialog-overlay').addEventListener('click', (e) => {
       if (e.target.classList.contains('dialog-overlay')) {
         closeDialog();
@@ -380,6 +382,30 @@
       downloader.showErrorNotification(error.message || 'An error occurred during export');
       closeDialog();
     }
+  }
+
+  // Export this project as a ZIP (screens, images, design systems, conversation).
+  // The background service worker does the work, so the dialog can close right away.
+  function executeZipExport() {
+    const projectId = (window.location.pathname.match(/\/projects\/(\d+)/) || [])[1];
+    if (!projectId) {
+      StitchDownloader?.showErrorNotification?.('Open a Stitch project to export it.');
+      return;
+    }
+    const format = formatDialog.querySelector('input[name="export-format"]:checked')?.value || 'claude';
+    const options = {};
+    if (format === 'custom') {
+      options.userRole = formatDialog.querySelector('#custom-user-role').value || 'user';
+      options.assistantRole = formatDialog.querySelector('#custom-assistant-role').value || 'assistant';
+    }
+    closeDialog();
+    StitchDownloader?.showSuccessNotification?.('This can take a minute. Keep the Stitch tab that opens in the background open; the save dialog appears when it is ready.', 'Preparing ZIP…');
+    chrome.runtime.sendMessage({ action: 'exportProject', projectId, format, options }, (result) => {
+      if (chrome.runtime.lastError || !result || !result.success) {
+        if (result && result.cancelled) return;
+        StitchDownloader?.showErrorNotification?.((result && result.error) || 'ZIP export failed');
+      }
+    });
   }
 
   // Add dialog styles

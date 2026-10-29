@@ -59,7 +59,7 @@
 
       <!-- Ready to export state -->
       <div id="readyState" class="state hidden">
-        <div class="format-selection">
+        <div class="format-selection" id="formatSelection">
           <label class="section-label">Export Format</label>
           <div class="radio-group">
             <label class="radio-option">
@@ -107,6 +107,15 @@
             Export Conversation
           </button>
 
+          <button id="exportProjectButton" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="14" height="14" rx="2" />
+              <path d="M3 13l4-4 3 3 2-2 5 5" />
+            </svg>
+            Export This Project (ZIP)
+          </button>
+          <div class="project-zip-hint">Screens, images, design systems and the conversation in one ZIP</div>
+
           <button id="exportAllButton" class="btn btn-primary btn-batch">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M4 10h12M4 6h12M4 14h12" />
@@ -151,7 +160,7 @@
       <!-- Batch export state -->
       <div id="batchExportState" class="state hidden">
         <div class="batch-progress-container">
-          <h3>Exporting All Projects</h3>
+          <h3 id="batchTitle">Exporting All Projects</h3>
           <div class="progress-bar-wrapper">
             <div id="batchProgressBar" class="progress-bar" style="width: 0%"></div>
           </div>
