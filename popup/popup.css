@@ -493,3 +493,13 @@ footer p {
 .input-group input:hover {
   border-color: #745472;
 }
+
+.message-box.info {
+  background: #f4eef4;
+  border-color: #745472;
+}
+
+.message-box.info .icon,
+.message-box.info h3 {
+  color: #50384E;
+}

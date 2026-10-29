@@ -145,6 +145,25 @@ async function initialize() {
   }
 }
 
+// On the Stitch dashboard (not inside a project) Export All works, so drop the warning
+async function updateNotOnProjectMessage() {
+  let onStitchHost = false;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    onStitchHost = !!(tab && tab.url && tab.url.includes('stitch.withgoogle.com'));
+  } catch (e) { /* keep the warning */ }
+  const box = document.getElementById('notOnStitchBox');
+  const title = document.getElementById('notOnStitchTitle');
+  const text = document.getElementById('notOnStitchText');
+  if (!box || !title || !text) return;
+  box.classList.toggle('warning', !onStitchHost);
+  box.classList.toggle('info', onStitchHost);
+  title.textContent = onStitchHost ? 'Stitch dashboard' : 'Not on Stitch';
+  text.textContent = onStitchHost
+    ? 'Export all your projects below, or open a project to export a single conversation.'
+    : 'Navigate to a Stitch project to export a single conversation, or use Export All below.';
+}
+
 // Check if current tab is on Stitch
 async function checkIfOnStitchPage() {
   try {
@@ -686,6 +705,7 @@ function setState(state) {
   switch (state) {
     case AppState.NOT_ON_STITCH:
       states.notOnStitch?.classList.remove('hidden');
+      updateNotOnProjectMessage();
       break;
     case AppState.READY:
       states.ready?.classList.remove('hidden');
