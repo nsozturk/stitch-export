@@ -3,6 +3,11 @@
  * Converts extracted conversation data to various LLM-compatible formats
  */
 
+// Read the version from the manifest so exported files never carry a stale number
+const EXPORTER_VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest)
+  ? chrome.runtime.getManifest().version
+  : 'unknown';
+
 const StitchFormatters = {
   /**
    * Convert to Claude Code format
@@ -31,7 +36,7 @@ const StitchFormatters = {
         export_date: new Date().toISOString(),
         format: 'claude_code',
         message_count: conversationData.messages.length,
-        exporter_version: '1.0.0'
+        exporter_version: EXPORTER_VERSION
       }
     };
   },
@@ -58,7 +63,7 @@ const StitchFormatters = {
         export_date: new Date().toISOString(),
         format: 'openai_chat',
         message_count: conversationData.messages.length,
-        exporter_version: '1.0.0'
+        exporter_version: EXPORTER_VERSION
       }
     };
   },

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stitch Export — Export Google Stitch projects to ZIP and LLM-ready JSON</title>
+
+  <meta name="description" content="Stitch Export is a free, open-source Chrome extension for Google Stitch that exports every project — screens, images, design systems and the full chat history — to ZIP archives and LLM-ready JSON (Claude, ChatGPT), locally in your browser.">
+  <meta name="keywords" content="stitch export, google stitch, stitch export chrome extension, export stitch projects, stitch to zip, stitch chat history export, design.md, claude code json, chatgpt json, open source chrome extension">
+  <meta name="author" content="nsozturk">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://nsozturk.github.io/stitch-export/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nsozturk.github.io/stitch-export/">
+  <meta property="og:title" content="Stitch Export — Export Google Stitch projects to ZIP and LLM-ready JSON">
+  <meta property="og:description" content="Free, open-source Chrome extension that exports every Google Stitch project — screens, images, design systems and chat history — to ZIP and Claude/ChatGPT JSON, locally.">
+  <meta property="og:image" content="https://nsozturk.github.io/stitch-export/assets/banner.png">
+  <meta property="og:site_name" content="Stitch Export">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://nsozturk.github.io/stitch-export/">
+  <meta name="twitter:title" content="Stitch Export — Export Google Stitch projects to ZIP and LLM-ready JSON">
+  <meta name="twitter:description" content="Free, open-source Chrome extension that exports every Google Stitch project to ZIP and Claude/ChatGPT JSON, locally in your browser.">
+  <meta name="twitter:image" content="https://nsozturk.github.io/stitch-export/assets/banner.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Stitch Export",
+        "operatingSystem": "Chrome (Windows, macOS, Linux)",
+        "applicationCategory": "BrowserApplication",
+        "softwareVersion": "1.3.0",
+        "description": "Stitch Export is a free, open-source Chrome extension for Google Stitch that exports every project — screens, images, design systems and the full chat history — to ZIP archives and LLM-ready JSON (Claude, ChatGPT), locally in your browser.",
+        "url": "https://nsozturk.github.io/stitch-export/",
+        "downloadUrl": "https://chromewebstore.google.com/detail/stitch-export/epmhicnoeiapmnobjhlliadbafbkdmag",
+        "codeRepository": "https://github.com/nsozturk/stitch-export",
+        "license": "https://opensource.org/licenses/MIT",
+        "image": "https://nsozturk.github.io/stitch-export/assets/banner.png",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "nsozturk", "url": "https://github.com/nsozturk" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How do I export all my Google Stitch projects?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Install Stitch Export, open any stitch.withgoogle.com tab, click the extension icon and press Export All Projects. One ZIP with every project is downloaded." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I export my Stitch chat history to Claude or ChatGPT format?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Choose Claude Code, OpenAI ChatGPT or a Custom format with your own user and assistant role names. The result is a conversation JSON file." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Stitch Export send my designs to a server?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. It calls Stitch's own web API from your logged-in tab and saves files locally. Nothing is sent to any third-party server, and there is no analytics or telemetry." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does the export stop if I close the popup?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. The export runs in the background. Keep the background Stitch tab open until the ZIP is downloaded." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Stitch Export free and open source?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. It is free, MIT licensed, and the source is on GitHub. It is an unofficial extension and is not affiliated with Google." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #151222;
+      --sidebar-bg: #0d0b16;
+      --border: #2a2238;
+      --text: #f1e8f0;
+      --text-muted: #a898a6;
+      --accent: #8D6A8A;
+      --accent-2: #745472;
+      --accent-3: #50384E;
+      --accent-glow: rgba(141, 106, 138, 0.18);
+      --code-bg: #07050d;
+      --sidebar-width: 280px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden;
+    }
+    a { color: #c9a6c5; }
+    header.navbar {
+      position: sticky; top: 0; z-index: 50; height: 64px;
+      background: rgba(11, 15, 25, 0.88); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.2rem; color: #fff; text-decoration: none; }
+    .brand .badge {
+      background: var(--accent-glow); color: #d9bfd6; border: 1px solid var(--accent);
+      font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;
+    }
+    .nav-actions { display: flex; align-items: center; gap: 16px; }
+    .nav-link { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem; }
+    .nav-link:hover { color: #fff; }
+    .btn-github, .btn-store {
+      color: #fff; padding: 6px 14px; border-radius: 8px; text-decoration: none;
+      font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px;
+      border: 1px solid var(--accent-2); background: var(--accent-3);
+    }
+    .btn-store { background: var(--accent); border-color: var(--accent); }
+    .btn-github:hover { background: var(--accent-2); }
+    .btn-store:hover { background: var(--accent-2); }
+
+    .container { display: flex; max-width: 1440px; margin: 0 auto; }
+    aside.sidebar {
+      width: var(--sidebar-width); flex-shrink: 0; position: sticky; top: 64px; height: calc(100vh - 64px);
+      background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 24px 16px; overflow-y: auto;
+    }
+    .search-box { margin-bottom: 20px; }
+    .search-box input {
+      width: 100%; background: #1b1628; border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 12px; color: #fff; font-size: 0.85rem; outline: none;
+    }
+    .search-box input:focus { border-color: var(--accent); }
+    .nav-section { margin-bottom: 22px; }
+    .nav-section-title {
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--text-muted); margin-bottom: 8px; font-weight: 700; padding-left: 8px;
+    }
+    .nav-menu-item {
+      display: block; padding: 7px 12px; color: var(--text-muted); text-decoration: none;
+      font-size: 0.9rem; font-weight: 500; border-radius: 6px; margin-bottom: 2px; border-left: 3px solid transparent;
+    }
+    .nav-menu-item:hover, .nav-menu-item.active { color: #fff; background: var(--accent-glow); border-left-color: var(--accent); }
+
+    main.content { flex: 1; min-width: 0; padding: 40px 60px; max-width: 940px; }
+    .banner-hero { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 32px; overflow: hidden; }
+    .banner-hero img { width: 100%; height: auto; display: block; }
+    h1 { font-size: 2.4rem; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.02em; }
+    h2 { font-size: 1.7rem; font-weight: 700; margin: 44px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1.2rem; font-weight: 600; margin: 24px 0 10px; }
+    p { margin-bottom: 16px; color: #d6cad4; }
+    ul, ol { margin: 0 0 16px 22px; color: #d6cad4; }
+    li { margin-bottom: 6px; }
+
+    pre {
+      background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; overflow-x: auto; margin: 16px 0 24px; position: relative;
+    }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88rem; }
+    p code, li code, td code {
+      background: #231c30; color: #ecdfea; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem;
+    }
+    .copy-btn {
+      position: absolute; top: 10px; right: 10px; background: #231c30; color: var(--text-muted);
+      border: 1px solid var(--border); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;
+    }
+    .copy-btn:hover { color: #fff; background: var(--accent-3); }
+
+    table { width: 100%; border-collapse: collapse; margin: 20px 0 30px; display: block; overflow-x: auto; }
+    th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; font-size: 0.9rem; vertical-align: top; }
+    th { background: var(--card-bg); color: #fff; font-weight: 600; }
+
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0; }
+    .feature-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .feature-card h4 { font-size: 1.02rem; margin-bottom: 8px; color: #fff; }
+    .feature-card p { font-size: 0.88rem; margin: 0; color: var(--text-muted); }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 8px; }
+    .cta a { text-decoration: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; color: #fff; border: 1px solid var(--accent); }
+    .cta a.primary { background: var(--accent); }
+    .cta a:hover { background: var(--accent-2); }
+    details { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
+    summary { cursor: pointer; font-weight: 600; color: #fff; }
+    details p { margin: 10px 0 0; }
+    footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-muted); text-align: center; }
+
+    @media (max-width: 900px) {
+      aside.sidebar { display: none; }
+      main.content { padding: 24px; }
+      .nav-link { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="#overview" class="brand">Stitch Export <span class="badge">v1.3.0</span></a>
+    <div class="nav-actions">
+      <a href="#install" class="nav-link">Install</a>
+      <a href="#usage" class="nav-link">Usage</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+      <a href="https://github.com/nsozturk/stitch-export" target="_blank" rel="noopener" class="btn-github">
+        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a href="https://chromewebstore.google.com/detail/stitch-export/epmhicnoeiapmnobjhlliadbafbkdmag" target="_blank" rel="noopener" class="btn-store">Chrome Web Store</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside class="sidebar">
+      <div class="search-box">
+        <input type="text" id="docSearch" placeholder="Search documentation..." aria-label="Search documentation">
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Getting Started</div>
+        <a href="#overview" class="nav-menu-item active">Overview</a>
+        <a href="#install" class="nav-menu-item">Install</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Using the extension</div>
+        <a href="#usage" class="nav-menu-item">Usage</a>
+        <a href="#zip-contents" class="nav-menu-item">What's in the ZIP</a>
+        <a href="#formats" class="nav-menu-item">Formats</a>
+        <a href="#privacy" class="nav-menu-item">Privacy</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">More</div>
+        <a href="#faq" class="nav-menu-item">FAQ</a>
+        <a href="#alternatives" class="nav-menu-item">Compared with</a>
+        <a href="#changelog" class="nav-menu-item">Changelog</a>
+        <a href="#ai-agents" class="nav-menu-item">AI agents</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="banner-hero">
+        <img src="assets/banner.png" onerror="this.src='../assets/banner.png'" alt="Stitch Export Banner">
+      </div>
+
+      <section id="overview">
+        <h1>Stitch Export</h1>
+        <p><strong>Stitch Export</strong> is a free, open-source Chrome extension for Google Stitch that exports every project — screens, images, design systems and the full chat history — to ZIP archives and LLM-ready JSON (Claude, ChatGPT), locally in your browser.</p>
+        <div class="cta">
+          <a class="primary" href="https://chromewebstore.google.com/detail/stitch-export/epmhicnoeiapmnobjhlliadbafbkdmag" target="_blank" rel="noopener">Install from Chrome Web Store</a>
+          <a href="https://github.com/nsozturk/stitch-export" target="_blank" rel="noopener">View source on GitHub</a>
+        </div>
+        <div class="feature-grid">
+          <div class="feature-card"><h4>Whole account in one ZIP</h4><p>Export All Projects bundles every project: screens, history, design systems and chat.</p></div>
+          <div class="feature-card"><h4>Full design history</h4><p>Per-turn generated screens, so you can see how each design evolved.</p></div>
+          <div class="feature-card"><h4>LLM-ready JSON</h4><p>Claude Code, OpenAI ChatGPT or custom-role conversation files.</p></div>
+          <div class="feature-card"><h4>Local and private</h4><p>No third-party servers, no analytics. Everything is saved to your Downloads folder.</p></div>
+        </div>
+      </section>
+
+      <section id="install">
+        <h2>Install</h2>
+        <p><strong>Chrome Web Store:</strong> add <a href="https://chromewebstore.google.com/detail/stitch-export/epmhicnoeiapmnobjhlliadbafbkdmag" target="_blank" rel="noopener">Stitch Export</a> to Chrome.</p>
+        <p><strong>Load unpacked:</strong></p>
+        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>git clone https://github.com/nsozturk/stitch-export.git
+# then open chrome://extensions, enable Developer Mode,
+# click "Load unpacked" and select the cloned folder</code></pre>
+      </section>
+
+      <section id="usage">
+        <h2>Usage</h2>
+        <h3>Export All Projects</h3>
+        <ol>
+          <li>Open any tab on <code>stitch.withgoogle.com</code> while logged in.</li>
+          <li>Click the Stitch Export icon. The badge shows your project count.</li>
+          <li>Press <strong>Export All Projects</strong> and pick a conversation format.</li>
+          <li>One ZIP of every project is downloaded when the run finishes.</li>
+        </ol>
+        <p>The export runs in the background: closing the popup does not stop it. Keep the background Stitch tab open until the download appears.</p>
+        <h3>Export This Project (ZIP)</h3>
+        <p>On a project page (<code>stitch.withgoogle.com/projects/{ID}</code>) press <strong>Export This Project (ZIP)</strong>. You get the same layout as one project of Export All, plus a full-size picture of every HTML screen.</p>
+        <h3>Export Conversation</h3>
+        <p>Press <strong>Export Conversation</strong> to save the chat only, as a JSON file in the format you chose. No ZIP, no screens.</p>
+      </section>
+
+      <section id="zip-contents">
+        <h2>What's in the ZIP</h2>
+        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>ProjectName_&lt;id&gt;/
+├── screens/                    final HTML screens + image-only screens (original resolution)
+├── history/
+│   └── turn-001-*/             screens generated in each turn
+├── design-systems/             DESIGN.md docs (*.md)
+├── chat.json                   every turn
+└── conversation.&lt;format&gt;.json  chat in the chosen format</code></pre>
+        <table>
+          <thead><tr><th>Path</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><code>screens/</code></td><td>Final HTML screens, plus image-only screens at original resolution.</td></tr>
+            <tr><td><code>history/turn-NNN-*/</code></td><td>Screens generated in that turn of the conversation.</td></tr>
+            <tr><td><code>design-systems/*.md</code></td><td>DESIGN.md design-system documents.</td></tr>
+            <tr><td><code>chat.json</code></td><td>Every turn with its generated screens and follow-up suggestions.</td></tr>
+            <tr><td><code>conversation.&lt;format&gt;.json</code></td><td>The conversation in Claude Code, OpenAI ChatGPT or custom format.</td></tr>
+          </tbody>
+        </table>
+        <p>Export This Project (ZIP) adds a full-size picture of every HTML screen on top of this layout.</p>
+      </section>
+
+      <section id="formats">
+        <h2>Formats</h2>
+        <table>
+          <thead><tr><th>Format</th><th>Use it for</th></tr></thead>
+          <tbody>
+            <tr><td>Claude Code</td><td>Structured conversation compatible with Claude Code exports.</td></tr>
+            <tr><td>OpenAI ChatGPT</td><td>Messages array compatible with the OpenAI Chat Completion API.</td></tr>
+            <tr><td>Custom</td><td>Rename the user and assistant roles (for example <code>Human</code> / <code>Model</code>).</td></tr>
+          </tbody>
+        </table>
+        <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>{
+  "messages": [
+    { "role": "user", "content": "..." },
+    { "role": "assistant", "content": "..." }
+  ]
+}</code></pre>
+      </section>
+
+      <section id="privacy">
+        <h2>Privacy</h2>
+        <ul>
+          <li>The extension uses Stitch's own web API from your logged-in tab.</li>
+          <li>Nothing is sent to any third-party server. Exports are local downloads.</li>
+          <li>No analytics, no telemetry, no tracking.</li>
+          <li>Passwords and session tokens are never read or transmitted.</li>
+        </ul>
+      </section>
+
+      <section id="faq">
+        <h2>FAQ</h2>
+        <details><summary>How do I export all my Google Stitch projects?</summary><p>Install Stitch Export, open any stitch.withgoogle.com tab, click the extension icon and press Export All Projects. One ZIP with every project is downloaded.</p></details>
+        <details><summary>Can I export my Stitch chat history to Claude or ChatGPT format?</summary><p>Yes. Choose Claude Code, OpenAI ChatGPT or a Custom format with your own user and assistant role names. The result is a conversation JSON file.</p></details>
+        <details><summary>Does Stitch Export send my designs to a server?</summary><p>No. It calls Stitch's own web API from your logged-in tab and saves files locally. Nothing is sent to any third-party server, and there is no analytics or telemetry.</p></details>
+        <details><summary>Does the export stop if I close the popup?</summary><p>No. The export runs in the background. Keep the background Stitch tab open until the ZIP is downloaded.</p></details>
+        <details><summary>Is Stitch Export free and open source?</summary><p>Yes. It is free, MIT licensed, and the source is on GitHub. It is an unofficial extension and is not affiliated with Google.</p></details>
+      </section>
+
+      <section id="alternatives">
+        <h2>Compared with</h2>
+        <p>Stitch Export is a free, open-source alternative to exporting Google Stitch work by hand.</p>
+        <table>
+          <thead><tr><th>Approach</th><th>Scope</th><th>Chat history</th><th>Effort</th></tr></thead>
+          <tbody>
+            <tr><td>Manual copy-paste</td><td>One screen or message at a time</td><td>Only what you paste</td><td>Repeated for every project</td></tr>
+            <tr><td>Stitch's own per-screen download</td><td>One screen at a time</td><td>Not included</td><td>Repeated for every screen</td></tr>
+            <tr><td>Stitch Export</td><td>All projects or one project in a ZIP</td><td>Every turn, as JSON</td><td>One click</td></tr>
+          </tbody>
+        </table>
+        <p>Product names are used only to describe what they do. Stitch Export is not affiliated with or endorsed by Google.</p>
+      </section>
+
+      <section id="changelog">
+        <h2>Changelog</h2>
+        <p>Release notes for every version are in the <a href="https://github.com/nsozturk/stitch-export/blob/main/CHANGELOG.md" target="_blank" rel="noopener">CHANGELOG</a>. The current version is 1.3.0.</p>
+      </section>
+
+      <section id="ai-agents">
+        <h2>AI agents</h2>
+        <p>Coding agents working on this repository should read <a href="https://github.com/nsozturk/stitch-export/blob/main/AGENTS.md" target="_blank" rel="noopener">AGENTS.md</a>. A machine-readable summary is available at <a href="llms.txt">llms.txt</a>.</p>
+      </section>
+
+      <footer>
+        <p>MIT licensed. Unofficial extension, not affiliated with Google or Stitch. Hosted on GitHub Pages. <a href="https://github.com/nsozturk/stitch-export">Source on GitHub</a>.</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    function copyCode(btn) {
+      var code = btn.nextElementSibling.innerText;
+      navigator.clipboard.writeText(code).then(function () {
+        btn.innerText = 'Copied!';
+        setTimeout(function () { btn.innerText = 'Copy'; }, 2000);
+      });
+    }
+    document.getElementById('docSearch').addEventListener('input', function (e) {
+      var q = e.target.value.toLowerCase();
+      document.querySelectorAll('main.content section').forEach(function (sec) {
+        sec.style.display = sec.innerText.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+      });
+    });
+    var links = document.querySelectorAll('.nav-menu-item');
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          links.forEach(function (l) { l.classList.toggle('active', l.getAttribute('href') === '#' + en.target.id); });
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    document.querySelectorAll('main.content section').forEach(function (s) { obs.observe(s); });
+  </script>
+</body>
+</html>

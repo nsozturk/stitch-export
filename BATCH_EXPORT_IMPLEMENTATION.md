@@ -15,7 +15,7 @@
 ### 1. Repo Klonlama
 
 ```bash
-cd /Users/ns0bj/Development/Fun/stitch-design
+cd <parent-folder>
 git clone https://github.com/nsozturk/stitch-export.git
 ```
 

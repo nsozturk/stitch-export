@@ -4,23 +4,14 @@
 
 ## 0. Bu sürümde ne değişti?
 
-- ✅ **Batch export pure-API**: 71 proje ~12 dk → ~30 sn (24× hız).
-- ✅ **Tek tab + 10 paralel API + 6 paralel HTML indirme**.
-- ✅ **Zengin chat export**: her turn için generated screens + follow-up suggestions.
-- ✅ **Yeni ZIP yapısı**: `screens/` (final) + `history/turn-NNN-slug/` (per-turn) + `chat.json` (referanslı).
-- ✅ **Icon badge**: list page'de proje sayısı (max "999+"), detail page'de "EXP" hatırlatıcı. Tema renkleri (#8D6A8A, #745472).
-- ✅ **Yeni icon set** (yeni `.svg` master + tüm boyutlar yenilendi).
-- ✅ Debug "Extract All Links" butonu gizlendi (HTML'de yorum satırı — ileride lazım olursa).
-- ✅ Manifest version `1.1.0` → `1.2.0`.
-
-> Store listing açıklamasını güncellersen "What's new" alanına yukarıdaki satırların kısa özetini koy.
+Güncel sürüm `1.3.0`. Değişikliklerin tamamı [CHANGELOG.md](CHANGELOG.md) içinde; Store "What's new" metni oradaki 1.3.0 özetinden alınır.
 
 ---
 
 ## 1. Yerelde son kontrol
 
 ```bash
-cd /Users/ns0bj/Development/Fun/stitch-design/stitch-export
+cd <repo>
 
 # Syntax sanity
 node -c background.js && node -c content.js && node -c popup/popup.js
@@ -72,11 +63,11 @@ screenshots/
 ### Prod ZIP'i oluştur
 
 ```bash
-cd /Users/ns0bj/Development/Fun/stitch-design/stitch-export
+cd <repo>
 
 # Geçici clean klasör
-rm -rf /tmp/stitch-export-1.2.0
-mkdir -p /tmp/stitch-export-1.2.0
+rm -rf /tmp/stitch-export-1.3.0
+mkdir -p /tmp/stitch-export-1.3.0
 
 # Sadece prod dosyalarını kopyala
 rsync -av \
@@ -94,18 +85,18 @@ rsync -av \
   --exclude='*.zip' \
   --exclude='PUBLISH.md' \
   --exclude='BATCH_EXPORT_IMPLEMENTATION.md' \
-  ./ /tmp/stitch-export-1.2.0/
+  ./ /tmp/stitch-export-1.3.0/
 
 # Manifest debug-helper.js referansını kaldır (opsiyonel — kullanılmıyorsa)
 # Eğer debug-helper.js prod'da gerekmiyorsa manifest'ten web_accessible_resources bloğunu temizle
 
 # Klasör içeriğini kontrol et
-ls -la /tmp/stitch-export-1.2.0/
+ls -la /tmp/stitch-export-1.3.0/
 
 # ZIP'le
-cd /tmp/stitch-export-1.2.0
-zip -r /tmp/stitch-export-1.2.0.zip . -x ".*"
-ls -lh /tmp/stitch-export-1.2.0.zip
+cd /tmp/stitch-export-1.3.0
+zip -r /tmp/stitch-export-1.3.0.zip . -x ".*"
+ls -lh /tmp/stitch-export-1.3.0.zip
 ```
 
 ZIP içinde sadece şunlar olmalı:
@@ -141,7 +132,7 @@ README.md
 1. **Aç**: https://chrome.google.com/webstore/devconsole
 2. Sol menüden **Stitch Export** eklentini seç.
 3. Sol panelden **Package** sekmesine git.
-4. **Upload new package** → biraz önce oluşturduğun `/tmp/stitch-export-1.2.0.zip`'i yükle.
+4. **Upload new package** → biraz önce oluşturduğun `/tmp/stitch-export-1.3.0.zip`'i yükle.
 5. Eğer ZIP içinde manifest sürümü Store'daki mevcut sürümle aynıysa upload reddedilir — manifest'te `1.2.0` olduğundan emin ol.
 
 ### Sürüm doğrulama hataları

@@ -1,86 +1,90 @@
-# Stitch Export
+<p align="center">
+  <img src="assets/banner.png" alt="Stitch Export — archive every Google Stitch project: screens, images, design systems and chat" width="100%">
+</p>
 
-> Archive every conversation and design from [stitch.withgoogle.com](https://stitch.withgoogle.com) — in 30 seconds.
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/stitch-export/epmhicnoeiapmnobjhlliadbafbkdmag"><img src="https://img.shields.io/chrome-web-store/v/epmhicnoeiapmnobjhlliadbafbkdmag?style=flat-square&color=8D6A8A&label=chrome%20web%20store" alt="Chrome Web Store version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/nsozturk/stitch-export?style=flat-square&color=8D6A8A" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-8D6A8A?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome Manifest V3">
+  <img src="https://img.shields.io/badge/data-stays%20in%20your%20browser-8D6A8A?style=flat-square" alt="Data stays in your browser">
+  <img src="https://img.shields.io/badge/no%20build%20step-zero%20dependencies-8D6A8A?style=flat-square" alt="No build step">
+  <a href="AGENTS.md"><img src="https://img.shields.io/badge/AI%20Agent-Native%20Ready-8D6A8A?style=flat-square" alt="AI Agent: Native Ready"></a>
+  <img src="https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Brave-8D6A8A?style=flat-square" alt="Chrome, Edge, Brave">
+</p>
 
-[![Version](https://img.shields.io/github/v/release/nsozturk/stitch-export?style=flat-square&color=8D6A8A&label=version)](https://github.com/nsozturk/stitch-export/releases/latest)
-[![License](https://img.shields.io/github/license/nsozturk/stitch-export?style=flat-square&color=8D6A8A)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/nsozturk/stitch-export/total?style=flat-square&color=8D6A8A&label=downloads)](https://github.com/nsozturk/stitch-export/releases)
-[![Last commit](https://img.shields.io/github/last-commit/nsozturk/stitch-export?style=flat-square&color=8D6A8A)](https://github.com/nsozturk/stitch-export/commits/main)
-![Manifest V3](https://img.shields.io/badge/manifest-v3-8D6A8A?style=flat-square)
-![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-8D6A8A?style=flat-square&logo=googlechrome&logoColor=white)
-![PRs welcome](https://img.shields.io/badge/PRs-welcome-8D6A8A?style=flat-square)
+<p align="center">
+  <code>google-stitch</code> <code>stitch-export</code> <code>chrome-extension</code> <code>design-export</code> <code>chat-export</code> <code>claude</code> <code>chatgpt</code> <code>llm-dataset</code> <code>ui-design</code>
+</p>
 
-![Stitch Export — Archive every Stitch design in 30 seconds](assets/hero.png)
+**Stitch Export is a free, open-source Chrome extension for Google Stitch that exports every project — screens, images, design systems and the full chat history — to ZIP archives and LLM-ready JSON (Claude, ChatGPT), locally in your browser.**
 
-Stitch Export is a Chrome extension that exports your conversations and
-generated designs from Google Stitch to LLM-compatible JSON formats (Claude
-Code, ChatGPT) and ZIP archives with the full per-turn design history.
+📖 Docs: **[nsozturk.github.io/stitch-export](https://nsozturk.github.io/stitch-export/)** · 🧩 **[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/stitch-export/epmhicnoeiapmnobjhlliadbafbkdmag)** · 📝 [Changelog](CHANGELOG.md)
 
 ## Features
 
-- **Single-project export** — current conversation as structured JSON
-  (Claude Code / OpenAI ChatGPT / custom-role formats)
-- **Batch export** — every Stitch project in one ZIP, in ~30 seconds for
-  70+ projects (24× faster than v1.1.x — uses Stitch's own API directly,
-  no DOM automation)
-- **Rich chat export** — every assistant turn includes references to the
-  designs it generated and the follow-up suggestion prompts
-- **Toolbar icon badge** — project count on the Stitch dashboard, "EXP"
-  reminder on project pages
-- **In-page button** — Export button injected directly into Stitch's
-  toolbar
-- **Context menu** — right-click → Export
-- **Local-only processing** — no data leaves your browser
+- **Export All Projects** — every Stitch project in one ZIP: final screens, image screens at
+  original resolution, per-turn screen history, design systems (`DESIGN.md`), `chat.json` and the
+  conversation in your chosen format. Tested on 117 projects / 1,369 screens with nothing missing.
+- **Export This Project (ZIP)** — the same for the project you have open, plus a full-size
+  picture of every HTML screen.
+- **Export Conversation** — the current chat as JSON only.
+- **Formats** — Claude Code, OpenAI ChatGPT, or Custom (rename the user / assistant roles).
+- **Runs in the background** — close the popup or switch tabs; open it again to see progress.
+- **Toolbar badge** — project count on the Stitch dashboard.
+- **In-page Export button and right-click menu** on project pages.
+- **Local-only** — talks only to Google's own Stitch endpoints from your logged-in tab; no servers,
+  no analytics.
 
-![Batch export — 10 parallel API calls, 6 parallel HTML downloads](assets/batch-export.png)
+![Batch export — 10 parallel API calls, 6 parallel downloads](assets/batch-export.png)
 
 ## Installation
 
-### Chrome Web Store
+### Chrome Web Store (recommended)
 
-> v1.2.0 currently in review.
+[Install Stitch Export](https://chromewebstore.google.com/detail/stitch-export/epmhicnoeiapmnobjhlliadbafbkdmag).
+Works in Chrome and Chromium browsers that install Chrome Web Store extensions (Edge, Brave).
 
-### Developer Mode (unpacked, until Store review completes)
+### Developer Mode (unpacked)
 
-1. Download the latest ZIP: [stitch-export-1.2.0.zip](https://github.com/nsozturk/stitch-export/releases/latest)
-2. Unzip somewhere on disk
-3. Open `chrome://extensions/`
-4. Enable **Developer Mode** (top-right)
-5. Click **Load unpacked** → select the unzipped folder
+1. Clone or download this repository
+2. Open `chrome://extensions/` and enable **Developer Mode** (top-right)
+3. Click **Load unpacked** and select the folder
+4. Refresh any open Stitch tabs
 
 ## Usage
 
-### Single conversation
-
-1. Open a Stitch project: `https://stitch.withgoogle.com/projects/{ID}`
-2. Click the Stitch Export icon (or right-click → Export Stitch Conversation)
-3. Choose a format → **Export Conversation** → JSON saved to Downloads
-
-### Batch export all projects
+### Export every project
 
 ![Live project count on the toolbar](assets/toolbar-badge.png)
 
-1. Click the Stitch Export icon on **any** Stitch tab — the icon shows
-   the project count as a badge
-2. Click **Export All Projects (NN)** in the popup
-3. The extension fetches every project via Stitch's API in one tab and
-   downloads every design HTML directly from Google's CDN
-4. A single ZIP is downloaded with this layout per project:
+1. Open [stitch.withgoogle.com](https://stitch.withgoogle.com) and click the Stitch Export icon
+2. Pick a format and click **Export All Projects (NN)**
+3. Keep the Stitch tab that opens in the background; the popup can be closed
+4. Save the ZIP when the save dialog appears
 
-   ```
-   stitch-all-projects-2026-05-15/
-   └── ProjectName_<id>/
-       ├── chat.json                              ← rich per-turn metadata
-       ├── screens/
-       │   ├── My_Screen_2cde0644.html            ← final state (from ErneX)
-       │   └── ...
-       └── history/
-           ├── turn-001-design-prompt-for-…/
-           │   ├── My_Screen_2cde0644.html        ← screens generated in turn 1
-           │   └── ...
-           └── turn-002-add-ghost-mode/
-               └── ...
-   ```
+### Export one project
+
+On a project page (`https://stitch.withgoogle.com/projects/{ID}`) click **Export This Project (ZIP)**
+in the popup, or the page's **Export Chat** button → **Export ZIP (with images)**.
+**Export Conversation** / **Export JSON** saves only the chat.
+
+### ZIP layout
+
+```
+stitch-all-projects-2026-10-29/            (stitch-project-… for a single project)
+└── ProjectName_<id>/
+    ├── chat.json                          ← every turn, with file references
+    ├── conversation.claude.json           ← chat in the chosen format
+    ├── screens/
+    │   ├── My_Screen_2cde0644.html        ← final screens
+    │   ├── My_Screen_2cde0644.png         ← screenshot (single-project ZIP)
+    │   └── Hero_image_7d381ee8.jpg        ← image-only screens, original size
+    ├── history/
+    │   └── turn-001-design-prompt-for-…/
+    │       └── My_Screen_2cde0644.html    ← screens generated in that turn
+    └── design-systems/
+        └── turn-004-Warm_Editorial.md     ← DESIGN.md from design-system turns
+```
 
 ### What's in `chat.json`
 
@@ -168,6 +172,45 @@ Pick the role names yourself (e.g. `Human` / `Model`).
   transmitted
 - All network requests go to Google's own domains (Stitch API, Google
   content CDN). The extension has no servers of its own.
+
+## FAQ
+
+### How do I download all my Google Stitch designs at once?
+Open stitch.withgoogle.com, click the Stitch Export icon and choose **Export All Projects**. You get
+one ZIP with every project's screens, images, design systems and chat history.
+
+### Can I export a Stitch chat for Claude or ChatGPT?
+Yes. Pick **Claude Code**, **OpenAI ChatGPT** or **Custom** in the popup. Every ZIP contains
+`conversation.<format>.json` in that format, and **Export Conversation** saves only the JSON.
+
+### Does it include the generated images and the design system?
+Yes. Image screens are saved at original resolution, HTML screens as HTML (plus a screenshot in the
+single-project ZIP), and design-system turns as `DESIGN.md` files with their color tokens in `chat.json`.
+
+### Is my data sent anywhere?
+No. The extension calls Stitch's own endpoints from your logged-in tab and saves the ZIP to your
+Downloads folder. There are no third-party servers, analytics or tracking.
+
+### Can I close the popup during a long export?
+Yes. The export runs in the extension's background service worker. Keep the Stitch tab it opens in
+the background, and click the icon again to see progress.
+
+### Is it an official Google product?
+No. Stitch Export is an independent open-source project and is not affiliated with Google.
+
+## Alternatives / compared with
+
+| Approach | Screens | Images | Design systems | Chat history | All projects at once |
+|---|---|---|---|---|---|
+| Stitch Export | ✅ | ✅ original size | ✅ | ✅ JSON + formats | ✅ |
+| Stitch's own per-screen download | ✅ one at a time | — | — | — | — |
+| Copy-pasting the chat by hand | — | — | — | partial | — |
+
+## For AI agents
+
+[AGENTS.md](AGENTS.md) describes the code layout, Stitch RPCs and how to verify changes;
+[GLOBAL_AGENT_RULE.md](GLOBAL_AGENT_RULE.md) is a snippet you can give your own assistant so it can
+use and reason about Stitch Export exports. [llms.txt](llms.txt) summarises the project for LLMs.
 
 ## Development
 

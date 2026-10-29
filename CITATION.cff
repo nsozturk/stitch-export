@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use Stitch Export, please cite it as below."
+title: "Stitch Export"
+abstract: "Stitch Export is a free, open-source Chrome extension for Google Stitch that exports every project — screens, images, design systems and the full chat history — to ZIP archives and LLM-ready JSON (Claude, ChatGPT), locally in your browser."
+type: software
+authors:
+  - alias: nsozturk
+version: 1.3.0
+date-released: 2026-10-29
+license: MIT
+repository-code: "https://github.com/nsozturk/stitch-export"
+url: "https://nsozturk.github.io/stitch-export/"
+keywords:
+  - google-stitch
+  - chrome-extension
+  - design-export
+  - chat-export
+  - llm

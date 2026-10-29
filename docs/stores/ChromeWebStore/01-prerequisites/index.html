@@ -168,7 +168,7 @@ Chrome Web Store, hesabında 2FA aktif olmasını **zorunlu** tutuyor. Eğer kap
 Yeni versiyonu yüklemeden önce **mutlaka** locally test et:
 
 ```bash
-cd /Users/ns0bj/Development/Fun/stitch-design/stitch-export
+cd <repo>
 
 # Syntax check
 node -c background.js && node -c content.js && node -c popup/popup.js
@@ -181,7 +181,7 @@ Ardından Chrome'da:
 
 1. `chrome://extensions/` aç
 2. Sağ üstte **Developer mode** toggle'ını aç
-3. **Load unpacked** → `/Users/ns0bj/Development/Fun/stitch-design/stitch-export` klasörünü seç
+3. **Load unpacked** → `<repo>` klasörünü seç
 4. Eklenti yüklendi, console'u `Inspect views: service worker` ile aç
 5. `[Stitch Export] Extension installed` log'u görünmeli
 

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="Stitch Export — archive every Google Stitch project to ZIP and LLM-ready JSON">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0f19"/>
+      <stop offset="1" stop-color="#1a1226"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8D6A8A" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#8D6A8A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9bfd6"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#50384E"/>
+      <stop offset="1" stop-color="#8D6A8A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="360" fill="url(#bg)"/>
+  <rect width="1280" height="360" fill="url(#glow)"/>
+  <g stroke="#8D6A8A" stroke-opacity="0.08">
+    <path d="M0 60H1280M0 120H1280M0 180H1280M0 240H1280M0 300H1280"/>
+  </g>
+
+  <!-- left: wordmark -->
+  <g font-family="'Helvetica Neue',Arial,sans-serif">
+    <rect x="64" y="64" width="56" height="56" rx="12" fill="#8D6A8A"/>
+    <path d="M92 80v22M92 102v6M80 94l12 12 12-12M72 114h40" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <text x="64" y="196" font-size="68" font-weight="800" fill="url(#word)" letter-spacing="-1.5">Stitch Export</text>
+    <text x="66" y="236" font-size="22" fill="#b9a6b7">Every project, screen and chat — to ZIP and JSON.</text>
+    <rect x="64" y="264" width="360" height="42" rx="21" fill="#50384E" fill-opacity="0.55" stroke="#8D6A8A" stroke-opacity="0.7"/>
+    <text x="86" y="291" font-family="Menlo,Consolas,monospace" font-size="17" fill="#e8d8e6">$ Export All Projects <tspan fill="#8D6A8A">→</tspan> .zip</text>
+  </g>
+
+  <!-- right: terminal card -->
+  <g>
+    <rect x="640" y="46" width="580" height="284" rx="16" fill="#0a0713" stroke="#8D6A8A" stroke-opacity="0.55"/>
+    <path d="M640 62a16 16 0 0 1 16-16h548a16 16 0 0 1 16 16v26H640z" fill="#1a1226"/>
+    <circle cx="668" cy="67" r="7" fill="#ff5f56"/>
+    <circle cx="690" cy="67" r="7" fill="#ffbd2e"/>
+    <circle cx="712" cy="67" r="7" fill="#27c93f"/>
+    <text x="930" y="72" text-anchor="middle" font-family="Menlo,Consolas,monospace" font-size="13" fill="#8a7a88">stitch-export — background</text>
+    <g font-family="Menlo,Consolas,monospace" font-size="17">
+      <text x="668" y="126" fill="#8D6A8A">$</text>
+      <text x="690" y="126" fill="#f1e8f0">export --all --format claude</text>
+      <text x="668" y="158" fill="#b9a6b7">fetching projects via Stitch API…</text>
+      <text x="668" y="188" fill="#27c93f">✓</text>
+      <text x="690" y="188" fill="#e8d8e6">screens/ history/ design-systems/ chat.json</text>
+      <text x="668" y="218" fill="#27c93f">✓</text>
+      <text x="690" y="218" fill="#e8d8e6">conversation.claude.json</text>
+      <rect x="668" y="238" width="524" height="10" rx="5" fill="#2a1f33"/>
+      <rect x="668" y="238" width="524" height="10" rx="5" fill="url(#bar)"/>
+      <text x="668" y="276" fill="#f1e8f0">117/117 projects · 1,369 screens · 1,294 turns</text>
+      <text x="668" y="299" fill="#8D6A8A">local only · nothing leaves your browser</text>
+    </g>
+  </g>
+</svg>

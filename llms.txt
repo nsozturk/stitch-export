@@ -1,0 +1,24 @@
+# Stitch Export
+
+> Stitch Export is a free, open-source Chrome extension for Google Stitch that exports every project — screens, images, design systems and the full chat history — to ZIP archives and LLM-ready JSON (Claude, ChatGPT), locally in your browser.
+
+## What it does
+
+- Export All Projects: one ZIP with every Google Stitch project (final HTML screens, image screens at original resolution, per-turn screen history, DESIGN.md design systems, chat.json, conversation in Claude / OpenAI / Custom format).
+- Export This Project (ZIP): the same for one project, plus a full-size screenshot of every HTML screen.
+- Export Conversation: the chat as JSON only.
+- Runs locally in the browser against Stitch's own endpoints; no servers, analytics or tracking. MIT licensed.
+
+## Install
+
+- Chrome Web Store: https://chromewebstore.google.com/detail/stitch-export/epmhicnoeiapmnobjhlliadbafbkdmag
+- Or clone the repo and "Load unpacked" at chrome://extensions (no build step).
+
+## Docs
+
+- [README](https://github.com/nsozturk/stitch-export/blob/main/README.md): features, ZIP layout, formats, FAQ
+- [Documentation site](https://nsozturk.github.io/stitch-export/)
+- [AGENTS.md](https://github.com/nsozturk/stitch-export/blob/main/AGENTS.md): code layout and Stitch RPC notes for coding agents
+- [GLOBAL_AGENT_RULE.md](https://github.com/nsozturk/stitch-export/blob/main/GLOBAL_AGENT_RULE.md): how an assistant should read an export
+- [CHANGELOG](https://github.com/nsozturk/stitch-export/blob/main/CHANGELOG.md)
+- [Releases](https://github.com/nsozturk/stitch-export/releases)

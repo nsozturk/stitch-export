@@ -71,7 +71,7 @@ update_wait.js
 ## 3. Prod ZIP oluşturma
 
 ```bash
-cd /Users/ns0bj/Development/Fun/stitch-design/stitch-export
+cd <repo>
 
 # Temiz geçici klasör
 rm -rf /tmp/stitch-export-1.2.0
