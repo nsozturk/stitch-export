@@ -750,8 +750,10 @@ async function handleExportAllProjects(format, options = {}) {
         const fetches = [...r._index.entries()].map(async ([uid, meta]) => {
           try {
             if (!meta.htmlUrl) {
-              // Image-only screen: store the picture itself
-              const resp = await fetch(meta.screenshotUrl);
+              // Image-only screen: store the picture itself. A bare lh3 URL serves a
+              // 286px preview; "=s0" returns the original resolution.
+              const imgUrl = meta.screenshotUrl.includes('=') ? meta.screenshotUrl : `${meta.screenshotUrl}=s0`;
+              const resp = await fetch(imgUrl);
               if (!resp.ok) return null;
               const type = resp.headers.get('content-type') || '';
               const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
