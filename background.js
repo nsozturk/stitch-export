@@ -79,10 +79,16 @@ async function fetchProjectCountFromTab(tabId) {
             body: params.toString()
           });
           const text = await res.text();
-          const re = /\\"projects\/(\d+)\\",\\"([^"\\\\]+)\\"/g;
+          // Parse the JSON envelope; a regex missed titles with escapes (e.g. "&" → &) and null titles
           const seen = new Set();
-          let m;
-          while ((m = re.exec(text)) !== null) seen.add(m[1]);
+          for (const line of text.split('\n')) {
+            if (!line.startsWith('[["wrb.fr","A7f2qf"')) continue;
+            const inner = JSON.parse(JSON.parse(line)[0][2]);
+            for (const p of (inner && inner[0]) || []) {
+              const id = String((p && p[0]) || '').split('/')[1];
+              if (id) seen.add(id);
+            }
+          }
           return { ok: true, count: seen.size };
         } catch (e) {
           return { ok: false };
@@ -846,16 +852,17 @@ async function fetchAuthAndProjectsInPage() {
     });
     const text = await res.text();
 
+    // Parse the JSON envelope; a regex missed titles with escapes (e.g. "&" → &) and null titles
     const projects = [];
-    const re = /\\"projects\/(\d+)\\",\\"([^"\\\\]+)\\"/g;
     const seen = new Set();
-    let m;
-    while ((m = re.exec(text)) !== null) {
-      const id = m[1];
-      const title = m[2];
-      if (!seen.has(id)) {
+    for (const line of text.split('\n')) {
+      if (!line.startsWith('[["wrb.fr","A7f2qf"')) continue;
+      const inner = JSON.parse(JSON.parse(line)[0][2]);
+      for (const p of (inner && inner[0]) || []) {
+        const id = String((p && p[0]) || '').split('/')[1];
+        if (!id || seen.has(id)) continue;
         seen.add(id);
-        projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
+        projects.push({ id, title: p[1] || `Untitled ${id}`, url: `https://stitch.withgoogle.com/projects/${id}` });
       }
     }
     if (projects.length === 0) {
@@ -1101,23 +1108,18 @@ async function fetchProjectList() {
           
           const text = await res.text();
           
+          // Parse the JSON envelope; a regex missed titles with escapes (e.g. "&" → &) and null titles
           const projects = [];
-          const regex = /\\\"projects\\\/(\\d+)\\\",\\\"([^"\\\\]+)\\\"/g;
-          // Wait, if it's evaluated in the browser context, the regex literal is:
-          // /\\"projects\/(\d+)\\",\\"([^"\\]+)\\"/g
-          
-          // Let's use RegExp to avoid escaping hell
-          const re = /\\\"projects\/(\d+)\\\",\\\"([^"\\\\]+)\\\"/g;
-          
-          let match;
           const seen = new Set();
-          while ((match = re.exec(text)) !== null) {
-             const id = match[1];
-             const title = match[2];
-             if (!seen.has(id)) {
-               seen.add(id);
-               projects.push({ id, title, url: `https://stitch.withgoogle.com/projects/${id}` });
-             }
+          for (const line of text.split('\n')) {
+            if (!line.startsWith('[["wrb.fr","A7f2qf"')) continue;
+            const inner = JSON.parse(JSON.parse(line)[0][2]);
+            for (const p of (inner && inner[0]) || []) {
+              const id = String((p && p[0]) || '').split('/')[1];
+              if (!id || seen.has(id)) continue;
+              seen.add(id);
+              projects.push({ id, title: p[1] || `Untitled ${id}`, url: `https://stitch.withgoogle.com/projects/${id}` });
+            }
           }
           
           if (projects.length > 0) {
