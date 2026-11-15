@@ -617,7 +617,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'batchApiProgress') {
     if (batchExportState.isRunning && !batchExportState.cancelled) {
-      updateBatchProgress(`Reading project data ${request.done}/${request.total}: ${request.title}`, request.done, request.total);
+      updateBatchProgress(`Step 1/3 · Reading projects ${request.done}/${request.total}: ${request.title}`, request.done, request.total);
     }
     return false;
   }
@@ -768,7 +768,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
     // internal parallelism (concurrency = API_CONCURRENCY). One big
     // executeScript dispatches the whole batch, returning when complete.
     const API_CONCURRENCY = 6; // 10 made Stitch return empty screen lists for some projects
-    updateBatchProgress(`Fetching API data for ${projects.length} projects (${API_CONCURRENCY} parallel)...`, 0, projects.length);
+    updateBatchProgress(`Step 1/3 · Reading ${projects.length} projects (${API_CONCURRENCY} at a time)...`, 0, projects.length);
 
     const apiResults = await chrome.scripting.executeScript({
       target: { tabId: workTab.id },
@@ -792,7 +792,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
     for (let i = 0; i < needsOpening.length; i++) {
       if (state.cancelled || state !== batchExportState) throw new Error('Export cancelled by user');
       const r = needsOpening[i];
-      updateBatchProgress(`${needsOpening.length} project(s) had not been opened in Stitch for a while, so Stitch did not list their screens. Opening them one by one in a background tab: "${r.projectTitle || r.projectId}" (${i + 1}/${needsOpening.length})...`, i, needsOpening.length);
+      updateBatchProgress(`Step 2/3 · ${needsOpening.length} project(s) had not been opened in Stitch for a while. Opening them one by one in a background tab and reading only those again: "${r.projectTitle || r.projectId}" (${i + 1}/${needsOpening.length})...`, i, needsOpening.length);
       let projectTab = null;
       try {
         projectTab = await chrome.tabs.create({ url: `${STITCH_ORIGIN}${accountSlot}/projects/${r.projectId}`, active: false });
@@ -845,7 +845,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
       }
       totalUniqueUrls += r._index.size;
     }
-    updateBatchProgress(`API done — ${apiOk.length}/${projects.length} projects, ${totalUniqueUrls} unique files. Downloading...`, 0, projects.length);
+    updateBatchProgress(`Step 3/3 · Downloading ${totalUniqueUrls} screen files for ${apiOk.length} projects (nothing is read twice)...`, 0, apiOk.length);
 
     // Step 3: download all HTMLs from contribution.usercontent.google.com in
     // the service worker, with HTML_CONCURRENCY parallel projects.
@@ -910,7 +910,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
         });
         processed++;
         state.current = processed;
-        updateBatchProgress(`Downloading files ${processed}/${apiOk.length}: ${r.projectTitle || r.projectId} (${htmlByUid.length} files)`, processed, apiOk.length);
+        updateBatchProgress(`Step 3/3 · Downloading screen files ${processed}/${apiOk.length}: ${r.projectTitle || r.projectId} (${htmlByUid.length} files)`, processed, apiOk.length);
       }
     };
 
