@@ -17,6 +17,8 @@ All notable changes to Stitch Export. Versions follow the `version` field in `ma
 - The popup could open blank when the background worker was busy; it now always renders.
 
 ### Added
+- **Open Stitch** button: off Stitch the popup only offers a way to Stitch (switches to an open
+  Stitch tab or opens one) instead of showing the format picker and Export All.
 - **Report a problem** links in the popup footer and on the error screen: a prefilled email or
   GitHub issue with the version, browser, page type and the error message (no URLs or account data).
 

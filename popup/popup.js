@@ -170,7 +170,27 @@ async function updateNotOnProjectMessage() {
   title.textContent = onStitchHost ? 'Stitch dashboard' : 'Not on Stitch';
   text.textContent = onStitchHost
     ? 'Export all your projects below, or open a project to export a single conversation.'
-    : 'Navigate to a Stitch project to export a single conversation, or use Export All below.';
+    : 'Open stitch.google.com to export your projects.';
+  // Off Stitch only the way to Stitch is offered: no format picker, no Export All
+  document.getElementById('openStitchButton')?.classList.toggle('hidden', onStitchHost);
+  document.getElementById('exportAllButtonNotOnStitch')?.classList.toggle('hidden', !onStitchHost);
+  document.getElementById('formatSelection')?.classList.toggle('hidden', !onStitchHost);
+}
+
+// Switch to an open Stitch tab, or open Stitch in a new tab
+async function openStitch() {
+  try {
+    const [existing] = await chrome.tabs.query({ url: ['https://stitch.google.com/*', 'https://stitch.withgoogle.com/*'] });
+    if (existing) {
+      await chrome.tabs.update(existing.id, { active: true });
+      await chrome.windows.update(existing.windowId, { focused: true });
+    } else {
+      await chrome.tabs.create({ url: 'https://stitch.google.com/' });
+    }
+  } catch (e) {
+    chrome.tabs.create({ url: 'https://stitch.google.com/' });
+  }
+  window.close();
 }
 
 // Check if current tab is on Stitch
@@ -198,6 +218,7 @@ function setupEventListeners() {
   elements.exportButton?.addEventListener('click', handleExport);
   elements.exportAllButton?.addEventListener('click', handleExportAll);
   document.getElementById('exportProjectButton')?.addEventListener('click', handleExportProject);
+  document.getElementById('openStitchButton')?.addEventListener('click', openStitch);
   elements.exportAllButtonNotOnStitch?.addEventListener('click', handleExportAll);
   elements.exportLinksButton?.addEventListener('click', handleExportLinks);
   elements.exportLinksButtonNotOnStitch?.addEventListener('click', handleExportLinks);
@@ -744,6 +765,7 @@ function setState(state) {
       break;
     case AppState.READY:
       states.ready?.classList.remove('hidden');
+      document.getElementById('formatSelection')?.classList.remove('hidden');
       moveFormatSelection(states.ready);
       break;
     case AppState.LOADING:
