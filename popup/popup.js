@@ -435,9 +435,12 @@ async function handleExportAll(projectId) {
 
     if (result && result.success) {
       setState(AppState.SUCCESS);
-      updateSuccessMessage(projectId
+      const warn = result.warningCount
+        ? ` ${result.warningCount} problem(s) were recorded in export-report.json inside the ZIP.`
+        : '';
+      updateSuccessMessage((projectId
         ? 'Project exported to ZIP!'
-        : `Successfully exported ${result.exportedCount}/${result.totalCount} projects to ZIP!`);
+        : `Successfully exported ${result.exportedCount}/${result.totalCount} projects to ZIP!`) + warn);
     } else if (result && result.cancelled) {
       setState((await checkIfOnStitchPage()) ? AppState.READY : AppState.NOT_ON_STITCH);
     } else {

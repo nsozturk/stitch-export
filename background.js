@@ -835,9 +835,13 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
         for (const f of fetched) {
           if (f) htmlByUid.push(f);
         }
+        const warnings = [...(r.warnings || [])];
+        const failedFiles = fetched.filter(f => !f).length;
+        if (failedFiles) warnings.push(`${failedFiles} of ${fetched.length} screen files could not be downloaded`);
 
         state.results.push({
           success: true,
+          warnings,
           projectId: r.projectId,
           projectTitle: r.projectTitle,
           finalScreens: r.screens || [],
@@ -869,7 +873,11 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
     }
 
     updateBatchProgress(`Creating ZIP archive with ${exportedCount} projects...`, state.total, state.total);
-    const zipBase64 = await createZipFromResults(state.results, format, options);
+    // Projects whose API calls failed entirely are reported, not silently skipped
+    const failedProjects = (batchData.results || [])
+      .map((r, i) => r && r.success ? null : { projectId: (r && r.projectId) || projects[i].id, projectTitle: (r && r.projectTitle) || projects[i].title, error: (r && r.error) || 'no result' })
+      .filter(Boolean);
+    const zipBase64 = await createZipFromResults(state.results, format, options, failedProjects);
 
     // Step 4: download
     const timestamp = new Date().toISOString().split('T')[0];
@@ -883,12 +891,14 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
       saveAs: true
     });
 
+    const warningCount = state.results.reduce((n, r) => n + (r.warnings || []).length, 0) + failedProjects.length;
     updateBatchProgress(`Done! Exported ${exportedCount}/${state.total} projects.`, state.total, state.total);
 
     return {
       success: true,
       exportedCount,
-      totalCount: state.total
+      totalCount: state.total,
+      warningCount
     };
 
   } catch (error) {
@@ -964,6 +974,38 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
   if (!auth) return { success: false, error: 'Auth not initialized in tab' };
   const { sid, at, base } = auth;
 
+  // One Stitch RPC with retries. Returns { data } or { error }; an error is never
+  // turned into "empty", so a failed call shows up in the export report.
+  const rpc = async (rpcId, freq) => {
+    let lastError = 'no response';
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(`${base}/_/Nemo/data/batchexecute?rpcids=${rpcId}&f.sid=${sid}&rt=c`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: new URLSearchParams({ 'f.req': freq, at }).toString()
+        });
+        if (!res.ok) {
+          lastError = `HTTP ${res.status}`;
+        } else {
+          const text = await res.text();
+          const line = text.split('\n').find(l => l.startsWith(`[["wrb.fr","${rpcId}"`));
+          if (!line) {
+            lastError = 'no data line';
+          } else {
+            const env = JSON.parse(line)[0];
+            if (env[2]) return { data: JSON.parse(env[2]) };
+            lastError = `Stitch error ${JSON.stringify(env[5] || env.slice(3))}`;
+          }
+        }
+      } catch (e) {
+        lastError = e.message;
+      }
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt));
+    }
+    return { error: lastError };
+  };
+
   const findSessions = (obj) => {
     if (Array.isArray(obj) && obj.length > 0 && Array.isArray(obj[0]) &&
         typeof obj[0][0] === 'string' && obj[0][0].includes('sessions/')) {
@@ -1002,27 +1044,10 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
   const fetchOne = async (project) => {
     try {
       // ---- ErneX: final state screens ----
-      const erneXParams = new URLSearchParams({
-        'f.req': `[[["ErneX","[\\"projects/${project.id}\\",1]",null,"13"]]]`,
-        'at': at
-      });
-      const erneXRes = await fetch(`${base}/_/Nemo/data/batchexecute?rpcids=ErneX&f.sid=${sid}&rt=c`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-        body: erneXParams.toString()
-      });
-      const erneXText = await erneXRes.text();
-
-      let erneXInner = null;
-      for (const line of erneXText.split('\n')) {
-        if (line.startsWith('[["wrb.fr","ErneX"')) {
-          try {
-            const parsed = JSON.parse(line);
-            erneXInner = JSON.parse(parsed[0][2]);
-          } catch (e) { /* parse error */ }
-          break;
-        }
-      }
+      const warnings = [];
+      const erneX = await rpc('ErneX', `[[["ErneX","[\\"projects/${project.id}\\",1]",null,"13"]]]`);
+      if (erneX.error) warnings.push(`Final screen list failed: ${erneX.error}`);
+      const erneXInner = erneX.data || null;
 
       const screens = [];
       const screenList = (erneXInner && Array.isArray(erneXInner[0])) ? erneXInner[0] : [];
@@ -1034,27 +1059,9 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
       // ---- dNS8Mc: per-turn chat + generated screens + suggestions ----
       let turns = [];
       try {
-        const dnsParams = new URLSearchParams({
-          'f.req': `[[["dNS8Mc","[\\"projects/${project.id}\\"]",null,"10"]]]`,
-          'at': at
-        });
-        const dnsRes = await fetch(`${base}/_/Nemo/data/batchexecute?rpcids=dNS8Mc&f.sid=${sid}&rt=c`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-          body: dnsParams.toString()
-        });
-        const dnsText = await dnsRes.text();
-
-        let dnsInner = null;
-        for (const ln of dnsText.split('\n')) {
-          if (ln.startsWith('[["wrb.fr","dNS8Mc"')) {
-            try {
-              const parsed = JSON.parse(ln);
-              dnsInner = JSON.parse(parsed[0][2]);
-            } catch (e) { /* parse error */ }
-            break;
-          }
-        }
+        const dns = await rpc('dNS8Mc', `[[["dNS8Mc","[\\"projects/${project.id}\\"]",null,"10"]]]`);
+        if (dns.error) warnings.push(`Chat history failed: ${dns.error}`);
+        const dnsInner = dns.data || null;
 
         if (dnsInner) {
           const sessions = findSessions(dnsInner);
@@ -1125,7 +1132,7 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
           }
         }
       } catch (chatErr) {
-        // chat is optional
+        warnings.push(`Chat history could not be read: ${chatErr.message}`);
       }
 
       return {
@@ -1133,7 +1140,8 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
         projectId: project.id,
         projectTitle: project.title,
         screens,
-        turns
+        turns,
+        warnings
       };
     } catch (e) {
       return {
@@ -1316,12 +1324,27 @@ function turnsToConversation(result) {
   };
 }
 
-async function createZipFromResults(results, format, options = {}) {
+async function createZipFromResults(results, format, options = {}, failedProjects = []) {
   const zip = new JSZip();
   const rootName = results.length === 1
     ? `stitch-project-${new Date().toISOString().split('T')[0]}`
     : `stitch-all-projects-${new Date().toISOString().split('T')[0]}`;
   const root = zip.folder(rootName);
+
+  // export-report.json: what was exported and every problem met on the way
+  root.file('export-report.json', JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    extensionVersion: chrome.runtime.getManifest().version,
+    projects: results.map(r => ({
+      projectId: r.projectId,
+      projectTitle: r.projectTitle,
+      finalScreens: (r.finalScreens || []).length,
+      turns: (r.turns || []).length,
+      files: (r.htmlByUid || []).length,
+      warnings: r.warnings || []
+    })),
+    failedProjects
+  }, null, 2));
 
   const slugify = slugifyName;
 
@@ -1423,6 +1446,7 @@ async function createZipFromResults(results, format, options = {}) {
         };
       })
     };
+    if (result.warnings && result.warnings.length) chatJson.warnings = result.warnings;
     projectFolder.file('chat.json', JSON.stringify(chatJson, null, 2));
 
     // ---- conversation.<format>.json : the chat in the format picked in the popup ----

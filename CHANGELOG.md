@@ -14,6 +14,10 @@ All notable changes to Stitch Export. Versions follow the `version` field in `ma
 - **Badge from another account.** The project count was shared across accounts and stayed on the
   old number after switching. Only one account's count is kept, and it is dropped when the account
   changes; a failed request shows "?" instead of an old number.
+- **No more silent gaps.** A failed Stitch request (screen list or chat history) used to be treated
+  as "no screens"; requests are now retried, and anything still failing — plus files that could not be
+  downloaded and projects that failed entirely — is listed in `export-report.json` at the top of the
+  ZIP and in each project's `chat.json` (`warnings`). The popup tells you when problems were recorded.
 - The popup could open blank when the background worker was busy; it now always renders.
 
 ### Added
