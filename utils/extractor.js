@@ -125,13 +125,14 @@ const StitchExtractor = {
         return null;
       }
 
+      const base = (location.pathname.match(/^\/u\/\d+/) || [''])[0]; // Google account slot, e.g. /u/2
       const params = new URLSearchParams({
         'f.req': `[[["dNS8Mc","[\\"projects/${projectId}\\"]",null,"28"]]]`,
         'at': tokenMatch[1]
       });
 
       const res = await fetch(
-        `/_/Nemo/data/batchexecute?rpcids=dNS8Mc&f.sid=${sidMatch[1]}&rt=c`,
+        `${base}/_/Nemo/data/batchexecute?rpcids=dNS8Mc&f.sid=${sidMatch[1]}&rt=c`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },

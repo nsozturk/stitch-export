@@ -68,7 +68,7 @@ async function updateExportAllLabel() {
   const slowTimer = setTimeout(showLoading, 300);
 
   try {
-    const res = await chrome.runtime.sendMessage({ action: 'getProjectCount' });
+    const res = await sendMessageWithTimeout({ action: 'getProjectCount' }, 15000);
     clearTimeout(slowTimer);
     hideLoading();
     if (res && typeof res.count === 'number') {
@@ -81,6 +81,15 @@ async function updateExportAllLabel() {
     hideLoading();
     labels.forEach(el => { el.textContent = 'Export All Projects'; });
   }
+}
+
+// sendMessage that gives up after `ms`, so a busy or restarting service worker
+// can never leave the popup blank
+function sendMessageWithTimeout(message, ms = 2500) {
+  return Promise.race([
+    chrome.runtime.sendMessage(message),
+    new Promise(resolve => setTimeout(() => resolve(null), ms))
+  ]);
 }
 
 // Initialize popup
@@ -124,7 +133,7 @@ async function initialize() {
 
   // Check if batch export is currently running
   try {
-    const batchState = await chrome.runtime.sendMessage({ action: 'getBatchExportState' });
+    const batchState = await sendMessageWithTimeout({ action: 'getBatchExportState' });
     // A cancelled run is only unwinding; don't trap the popup on it
     if (batchState && batchState.isRunning && !batchState.cancelled) {
       setState(AppState.BATCH_EXPORT);
@@ -767,11 +776,59 @@ function updateSuccessMessage(message) {
 }
 
 // Update error message
+let lastErrorMessage = '';
+
 function updateErrorMessage(message) {
+  lastErrorMessage = message || '';
   if (elements.errorMessage) {
     elements.errorMessage.textContent = message;
   }
 }
+
+// ---- Report a problem -------------------------------------------------------
+// Prefills an email or a GitHub issue with what is needed to reproduce: version,
+// browser, page type, and the last error. No URLs, project ids or account data.
+const REPORT_EMAIL = 'support@lamma.dev';
+const REPORT_ISSUES_URL = 'https://github.com/nsozturk/stitch-export/issues/new';
+
+async function buildReport() {
+  let page = 'not a Stitch page';
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = (tab && tab.url) || '';
+    if (/^https:\/\/stitch\.(withgoogle|google)\.com\//.test(url)) {
+      page = /\/projects\/\d+/.test(url) ? 'Stitch project page' : 'Stitch dashboard';
+      if (/\/u\/\d+\//.test(url)) page += ' (secondary Google account)';
+    }
+  } catch (e) { /* keep default */ }
+  const chromeVersion = (navigator.userAgent.match(/Chrome\/([\d.]+)/) || [])[1] || 'unknown';
+  const lines = [
+    `Extension version: ${chrome.runtime.getManifest().version}`,
+    `Chrome: ${chromeVersion}`,
+    `Page: ${page}`,
+    `Error: ${lastErrorMessage || '(none shown)'}`,
+    '',
+    'What did you do, and what happened?',
+    ''
+  ];
+  return {
+    title: lastErrorMessage ? `Error: ${lastErrorMessage.slice(0, 80)}` : 'Problem report',
+    body: lines.join('\n')
+  };
+}
+
+async function openReport(channel) {
+  const { title, body } = await buildReport();
+  const url = channel === 'github'
+    ? `${REPORT_ISSUES_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`
+    : `mailto:${REPORT_EMAIL}?subject=${encodeURIComponent('Stitch Export: ' + title)}&body=${encodeURIComponent(body)}`;
+  chrome.tabs.create({ url });
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest && e.target.closest('[data-report]');
+  if (btn) openReport(btn.dataset.report);
+});
 
 // Initialize when popup loads
 document.addEventListener('DOMContentLoaded', initialize);

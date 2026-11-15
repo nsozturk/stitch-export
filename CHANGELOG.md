@@ -2,6 +2,24 @@
 
 All notable changes to Stitch Export. Versions follow the `version` field in `manifest.json`.
 
+## 1.3.1 — 2026-11-16
+
+### Fixed
+- **Works on stitch.google.com.** Google moved Stitch from stitch.withgoogle.com (which now redirects),
+  and the extension had no permission on the new address: every export failed with
+  "Cannot access contents of url". Both addresses are supported.
+- **Multiple Google accounts.** With several accounts signed in (`/u/1/`, `/u/2/` …), requests were
+  sent as the default account and failed with HTTP 400, and Export All could export the wrong
+  account. Every request and the background export tab now use the account of the tab you are on.
+- **Badge from another account.** The project count was shared across accounts and stayed on the
+  old number after switching. Only one account's count is kept, and it is dropped when the account
+  changes; a failed request shows "?" instead of an old number.
+- The popup could open blank when the background worker was busy; it now always renders.
+
+### Added
+- **Report a problem** links in the popup footer and on the error screen: a prefilled email or
+  GitHub issue with the version, browser, page type and the error message (no URLs or account data).
+
 ## 1.3.0 — 2026-10-29
 
 Verified end to end on a live account with 117 projects, 1,294 chat turns and 1,369 screens:

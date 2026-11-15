@@ -46,8 +46,10 @@ const BADGE_COLOR_LIST = '#8D6A8A';   // primary accent
 const BADGE_COLOR_DETAIL = '#745472'; // hover/dark
 const BADGE_TEXT_COLOR = '#FFFFFF';
 const PROJECT_COUNT_CACHE_MS = 10 * 60 * 1000; // 10 min
-let _projectCountCache = { value: null, fetchedAt: 0 };
-let _fetchInFlight = null;
+// One cached count for one Google account only. Switching account (another /u/N
+// slot, or another user in the same slot) drops it, so no other account's data is shown.
+let _projectCountCache = { account: null, value: null, fetchedAt: 0 };
+let _fetchInFlight = null; // { account, promise }
 
 // Stitch moved from stitch.withgoogle.com to stitch.google.com (the old host now redirects)
 const STITCH_ORIGIN = 'https://stitch.google.com';
@@ -55,6 +57,27 @@ const STITCH_HOSTS = ['https://stitch.google.com/', 'https://stitch.withgoogle.c
 const isStitchHost = (url) => typeof url === 'string' && STITCH_HOSTS.some(h => url.indexOf(h) === 0);
 const isProjectDetailUrl = (url) => isStitchHost(url) && /\/projects\/\d+/.test(url);
 const isProjectListUrl = (url) => isStitchHost(url) && !isProjectDetailUrl(url);
+// Google account slot of a Stitch URL: "/u/2" for https://stitch.google.com/u/2/..., "" for the default account
+const accountSlotOf = (url) => ((/^https:\/\/[^/]+(\/u\/\d+)(?:\/|$)/.exec(url || '') || [])[1] || '');
+
+// Identifies the signed-in account in a Stitch tab: slot + Stitch's own user id from the page.
+// No network request; returns null when the tab is not a signed-in Stitch page.
+async function readAccount(tabId) {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const html = document.documentElement.innerHTML;
+        const user = (html.match(/"S06Grb":"([^"]*)"/) || [])[1] || '';
+        const slot = (location.pathname.match(/^\/u\/\d+/) || [''])[0];
+        return /"SNlM0e":"/.test(html) ? `${slot}|${user}` : null;
+      }
+    });
+    return (results && results[0] && results[0].result) || null;
+  } catch (e) {
+    return null;
+  }
+}
 
 function formatCount(n) {
   if (typeof n !== 'number' || isNaN(n) || n < 0) return '';
@@ -72,27 +95,33 @@ async function fetchProjectCountFromTab(tabId) {
           const sidMatch = html.match(/"FdrFJe":"([^"]+)"/);
           const tokenMatch = html.match(/"SNlM0e":"([^"]+)"/);
           if (!sidMatch || !tokenMatch) return { ok: false };
+          const base = (location.pathname.match(/^\/u\/\d+/) || [''])[0]; // Google account slot, e.g. /u/2
           const params = new URLSearchParams({
             'f.req': '[[["A7f2qf","[]",null,"1"]]]',
             'at': tokenMatch[1]
           });
-          const res = await fetch(`/_/Nemo/data/batchexecute?rpcids=A7f2qf&f.sid=${sidMatch[1]}&rt=c`, {
+          const res = await fetch(`${base}/_/Nemo/data/batchexecute?rpcids=A7f2qf&f.sid=${sidMatch[1]}&rt=c`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
             body: params.toString()
           });
+          if (!res.ok) return { ok: false };
           const text = await res.text();
           // Parse the JSON envelope; a regex missed titles with escapes (e.g. "&" → &) and null titles
           const seen = new Set();
+          let answered = false;
           for (const line of text.split('\n')) {
             if (!line.startsWith('[["wrb.fr","A7f2qf"')) continue;
-            const inner = JSON.parse(JSON.parse(line)[0][2]);
+            const payload = JSON.parse(line)[0][2];
+            if (!payload) return { ok: false }; // Stitch returned an error instead of the list
+            answered = true;
+            const inner = JSON.parse(payload);
             for (const p of (inner && inner[0]) || []) {
               const id = String((p && p[0]) || '').split('/')[1];
               if (id) seen.add(id);
             }
           }
-          return { ok: true, count: seen.size };
+          return answered ? { ok: true, count: seen.size } : { ok: false };
         } catch (e) {
           return { ok: false };
         }
@@ -106,21 +135,30 @@ async function fetchProjectCountFromTab(tabId) {
   return null;
 }
 
-async function getProjectCount(tabId) {
-  const now = Date.now();
-  if (_projectCountCache.value != null && now - _projectCountCache.fetchedAt < PROJECT_COUNT_CACHE_MS) {
-    return _projectCountCache.value;
+// Cached count for exactly this account, or null
+function cachedCountFor(account) {
+  const c = _projectCountCache;
+  if (!account || c.account !== account || c.value == null) return null;
+  return Date.now() - c.fetchedAt < PROJECT_COUNT_CACHE_MS ? c.value : null;
+}
+
+async function getProjectCount(tabId, account) {
+  if (account === undefined) account = await readAccount(tabId);
+  if (!account) return null;
+  if (_projectCountCache.account !== account) {
+    _projectCountCache = { account: null, value: null, fetchedAt: 0 }; // another account: forget it
   }
-  if (_fetchInFlight) return _fetchInFlight;
-  _fetchInFlight = (async () => {
+  const cached = cachedCountFor(account);
+  if (cached != null) return cached;
+  if (_fetchInFlight && _fetchInFlight.account === account) return _fetchInFlight.promise;
+  const promise = (async () => {
     const count = await fetchProjectCountFromTab(tabId);
-    if (count != null) {
-      _projectCountCache = { value: count, fetchedAt: Date.now() };
-    }
-    _fetchInFlight = null;
+    if (count != null) _projectCountCache = { account, value: count, fetchedAt: Date.now() };
+    if (_fetchInFlight && _fetchInFlight.account === account) _fetchInFlight = null;
     return count;
   })();
-  return _fetchInFlight;
+  _fetchInFlight = { account, promise };
+  return promise;
 }
 
 // Braille spinner — renders well in Chrome action badge.
@@ -175,13 +213,14 @@ async function applyBadge(tab) {
         try { await chrome.action.setBadgeTextColor({ tabId, color: BADGE_TEXT_COLOR }); } catch (e) {}
       }
 
-      const cached = _projectCountCache.value;
+      const account = await readAccount(tabId);
+      const cached = cachedCountFor(account);
       if (typeof cached === 'number') {
         // Fast path: show cached count instantly. Refresh in background.
         stopBadgeSpinner();
         await chrome.action.setBadgeText({ tabId, text: formatCount(cached) });
         await chrome.action.setTitle({ tabId, title: `${cached} Stitch projects — click to export all` });
-        const fresh = await getProjectCount(tabId);
+        const fresh = await getProjectCount(tabId, account);
         if (fresh != null) {
           try {
             const cur = await chrome.tabs.get(tabId);
@@ -198,7 +237,7 @@ async function applyBadge(tab) {
       startBadgeSpinner(tabId, BADGE_COLOR_LIST);
       await chrome.action.setTitle({ tabId, title: 'Stitch — projeler sayılıyor, biraz uzun sürebilir…' });
 
-      const fresh = await getProjectCount(tabId);
+      const fresh = await getProjectCount(tabId, account);
       stopBadgeSpinner();
       try {
         const cur = await chrome.tabs.get(tabId);
@@ -255,8 +294,8 @@ chrome.runtime.onInstalled.addListener(async () => {
 async function handleContextMenuExportAll(tab) {
   try {
     console.log('[Stitch Export] Context menu export-all triggered');
-    // Use default format (claude)
-    await handleExportAllProjects('claude', {});
+    // Use default format (claude), same account as the clicked tab
+    await handleExportAllProjects('claude', {}, null, accountSlotOf(tab && tab.url));
   } catch (error) {
     console.error('[Stitch Export] Context menu export-all error:', error);
   }
@@ -560,8 +599,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'exportProject') {
-    // Single project ZIP: same pipeline as Export All, limited to one project
-    handleExportAllProjects(request.format, request.options, request.projectId)
+    // Single project ZIP: same pipeline as Export All, limited to one project.
+    // From the page dialog the sender tab tells the account; from the popup the active tab does.
+    const senderSlot = sender.tab && isStitchHost(sender.tab.url || '') ? accountSlotOf(sender.tab.url) : null;
+    handleExportAllProjects(request.format, request.options, request.projectId, senderSlot)
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
@@ -580,12 +621,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'getProjectCount') {
-    // Return cached value immediately if present. Otherwise try to fetch from
-    // the active Stitch tab (lazily warms cache for popup display).
-    if (typeof _projectCountCache.value === 'number') {
-      sendResponse({ count: _projectCountCache.value, cached: true });
-      return true;
-    }
+    // Count for the account open in the active Stitch tab (cached per account)
     (async () => {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -655,7 +691,7 @@ async function handleExportRequest(format, tab) {
 // needed — URLs are self-authenticating).
 // ============================================================
 
-async function handleExportAllProjects(format, options = {}, onlyProjectId = null) {
+async function handleExportAllProjects(format, options = {}, onlyProjectId = null, accountSlot = null) {
   // Local handle: a cancelled run that is still unwinding must not touch a newer run
   const state = batchExportState = {
     isRunning: true,
@@ -672,8 +708,10 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
     console.log('[Stitch Export] Starting API batch export...');
     updateBatchProgress('Opening Stitch dashboard...', 0, 0);
 
+    // Same Google account as the Stitch tab the user started from
+    if (accountSlot === null) accountSlot = await activeAccountSlot();
     workTab = await chrome.tabs.create({
-      url: `${STITCH_ORIGIN}/`,
+      url: `${STITCH_ORIGIN}${accountSlot}/`,
       active: false
     });
     state.currentTabId = workTab.id;
@@ -695,8 +733,9 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
       throw new Error('No projects found. Make sure you are logged into stitch.google.com');
     }
 
-    // Refresh badge cache with authoritative count
-    _projectCountCache = { value: init.projects.length, fetchedAt: Date.now() };
+    // Refresh badge cache with authoritative count, for this account only
+    const workAccount = await readAccount(workTab.id);
+    if (workAccount) _projectCountCache = { account: workAccount, value: init.projects.length, fetchedAt: Date.now() };
 
     const projects = onlyProjectId ? init.projects.filter(p => p.id === onlyProjectId) : init.projects;
     if (projects.length === 0) {
@@ -881,13 +920,14 @@ async function fetchAuthAndProjectsInPage() {
     }
     const sid = sidMatch[1];
     const at = tokenMatch[1];
-    window.__stitchAuth = { sid, at };
+    const base = (location.pathname.match(/^\/u\/\d+/) || [''])[0]; // Google account slot, e.g. /u/2
+    window.__stitchAuth = { sid, at, base };
 
     const params = new URLSearchParams({
       'f.req': '[[["A7f2qf","[]",null,"1"]]]',
       'at': at
     });
-    const res = await fetch(`/_/Nemo/data/batchexecute?rpcids=A7f2qf&f.sid=${sid}&rt=c`, {
+    const res = await fetch(`${base}/_/Nemo/data/batchexecute?rpcids=A7f2qf&f.sid=${sid}&rt=c`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
       body: params.toString()
@@ -904,7 +944,7 @@ async function fetchAuthAndProjectsInPage() {
         const id = String((p && p[0]) || '').split('/')[1];
         if (!id || seen.has(id)) continue;
         seen.add(id);
-        projects.push({ id, title: p[1] || `Untitled ${id}`, url: `${location.origin}/projects/${id}` });
+        projects.push({ id, title: p[1] || `Untitled ${id}`, url: `${location.origin}${base}/projects/${id}` });
       }
     }
     if (projects.length === 0) {
@@ -922,7 +962,7 @@ async function fetchAuthAndProjectsInPage() {
 async function fetchProjectsBatchInPage(projects, concurrency) {
   const auth = window.__stitchAuth;
   if (!auth) return { success: false, error: 'Auth not initialized in tab' };
-  const { sid, at } = auth;
+  const { sid, at, base } = auth;
 
   const findSessions = (obj) => {
     if (Array.isArray(obj) && obj.length > 0 && Array.isArray(obj[0]) &&
@@ -966,7 +1006,7 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
         'f.req': `[[["ErneX","[\\"projects/${project.id}\\",1]",null,"13"]]]`,
         'at': at
       });
-      const erneXRes = await fetch(`/_/Nemo/data/batchexecute?rpcids=ErneX&f.sid=${sid}&rt=c`, {
+      const erneXRes = await fetch(`${base}/_/Nemo/data/batchexecute?rpcids=ErneX&f.sid=${sid}&rt=c`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
         body: erneXParams.toString()
@@ -998,7 +1038,7 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
           'f.req': `[[["dNS8Mc","[\\"projects/${project.id}\\"]",null,"10"]]]`,
           'at': at
         });
-        const dnsRes = await fetch(`/_/Nemo/data/batchexecute?rpcids=dNS8Mc&f.sid=${sid}&rt=c`, {
+        const dnsRes = await fetch(`${base}/_/Nemo/data/batchexecute?rpcids=dNS8Mc&f.sid=${sid}&rt=c`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
           body: dnsParams.toString()
@@ -1124,11 +1164,21 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
   return { success: true, results };
 }
 
+// Account slot of the active tab when it is a Stitch tab, else the default account
+async function activeAccountSlot() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    return tab && isStitchHost(tab.url || '') ? accountSlotOf(tab.url) : '';
+  } catch (e) {
+    return '';
+  }
+}
+
 // Fetch list of projects from the Stitch dashboard using the API
 async function fetchProjectList() {
   // Open dashboard in a background tab
   const tab = await chrome.tabs.create({
-    url: `${STITCH_ORIGIN}/`,
+    url: `${STITCH_ORIGIN}${await activeAccountSlot()}/`,
     active: false
   });
   batchExportState.currentTabId = tab.id;
@@ -1152,13 +1202,14 @@ async function fetchProjectList() {
           if (!sidMatch || !tokenMatch) {
             return { error: "Could not find auth tokens (FdrFJe or SNlM0e) in page source" };
           }
+          const base = (location.pathname.match(/^\/u\/\d+/) || [''])[0]; // Google account slot, e.g. /u/2
           
           const params = new URLSearchParams({
             'f.req': '[[["A7f2qf","[]",null,"1"]]]',
             'at': tokenMatch[1]
           });
           
-          const res = await fetch(`/_/Nemo/data/batchexecute?rpcids=A7f2qf&f.sid=${sidMatch[1]}&rt=c`, {
+          const res = await fetch(`${base}/_/Nemo/data/batchexecute?rpcids=A7f2qf&f.sid=${sidMatch[1]}&rt=c`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
@@ -1178,7 +1229,7 @@ async function fetchProjectList() {
               const id = String((p && p[0]) || '').split('/')[1];
               if (!id || seen.has(id)) continue;
               seen.add(id);
-              projects.push({ id, title: p[1] || `Untitled ${id}`, url: `${location.origin}/projects/${id}` });
+              projects.push({ id, title: p[1] || `Untitled ${id}`, url: `${location.origin}${base}/projects/${id}` });
             }
           }
           
