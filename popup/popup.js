@@ -137,6 +137,7 @@ async function initialize() {
     // A cancelled run is only unwinding; don't trap the popup on it
     if (batchState && batchState.isRunning && !batchState.cancelled) {
       setState(AppState.BATCH_EXPORT);
+      startElapsedClock(batchState.startedAt);
       updateBatchProgressUI(batchState.current, batchState.total, 'Resuming view...');
       return;
     }
@@ -410,6 +411,7 @@ async function handleExportAll(projectId) {
   if (batchTitle) batchTitle.textContent = projectId ? 'Exporting This Project' : 'Exporting All Projects';
   try {
     setState(AppState.BATCH_EXPORT);
+    startElapsedClock();
     updateBatchProgressUI(0, 0, 'Starting batch export...');
     // Reset the button a previous cancel turned into "Go Back"
     if (elements.cancelBatchButton) {
@@ -469,6 +471,27 @@ async function handleCancelBatch() {
 }
 
 // Update batch export UI
+// While an export runs the bar keeps moving and a clock ticks, so a long step
+// (opening Stitch, reading projects, zipping) never looks frozen
+let elapsedTimer = null;
+function startElapsedClock(startedAt) {
+  stopElapsedClock();
+  const start = startedAt || Date.now();
+  const el = document.getElementById('batchElapsed');
+  const tick = () => {
+    const s = Math.max(0, Math.floor((Date.now() - start) / 1000));
+    if (el) el.textContent = `Working… ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+  tick();
+  elapsedTimer = setInterval(tick, 1000);
+  elements.batchProgressBar?.parentElement?.classList.add('running');
+}
+function stopElapsedClock() {
+  if (elapsedTimer) clearInterval(elapsedTimer);
+  elapsedTimer = null;
+  elements.batchProgressBar?.parentElement?.classList.remove('running');
+}
+
 function updateBatchProgressUI(current, total, message) {
   if (elements.batchProgressBar) {
     const percent = total > 0 ? Math.round((current / total) * 100) : 0;
@@ -753,6 +776,7 @@ function getSelectedFormat() {
 // Set UI state
 function setState(state) {
   currentState = state;
+  if (state !== AppState.BATCH_EXPORT) stopElapsedClock();
 
   // Hide all states
   Object.values(states).forEach(el => {

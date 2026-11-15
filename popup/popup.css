@@ -535,3 +535,29 @@ footer p {
 .link-button:hover {
   color: #50384E;
 }
+
+/* Running export: an always-moving striped bar (with a minimum width so it is
+   visible at 0%) — the work is going on even when the count has not changed */
+.progress-bar-wrapper.running .progress-bar {
+  min-width: 14%;
+  background-image:
+    linear-gradient(45deg, rgba(255,255,255,0.22) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.22) 75%, transparent 75%, transparent),
+    linear-gradient(90deg, #50384E, #8D6A8A);
+  background-size: 16px 16px, 100% 100%;
+  animation: stitch-export-stripes 0.8s linear infinite;
+}
+
+@keyframes stitch-export-stripes {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 16px 0, 0 0; }
+}
+
+.batch-elapsed {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar-wrapper.running .progress-bar { animation: none; }
+}

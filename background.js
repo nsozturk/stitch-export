@@ -615,6 +615,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'batchApiProgress') {
+    if (batchExportState.isRunning && !batchExportState.cancelled) {
+      updateBatchProgress(`Reading project data ${request.done}/${request.total}: ${request.title}`, request.done, request.total);
+    }
+    return false;
+  }
+
   if (request.action === 'getBatchExportState') {
     sendResponse({ ...batchExportState });
     return true;
@@ -695,6 +702,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
   // Local handle: a cancelled run that is still unwinding must not touch a newer run
   const state = batchExportState = {
     isRunning: true,
+    startedAt: Date.now(),
     total: 0,
     current: 0,
     projects: [],
@@ -852,7 +860,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
         });
         processed++;
         state.current = processed;
-        updateBatchProgress(`Downloaded ${processed}/${apiOk.length}: ${r.projectTitle || r.projectId} (${htmlByUid.length} files)`, processed, apiOk.length);
+        updateBatchProgress(`Downloading files ${processed}/${apiOk.length}: ${r.projectTitle || r.projectId} (${htmlByUid.length} files)`, processed, apiOk.length);
       }
     };
 
@@ -1156,6 +1164,7 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
   // Concurrency-limited worker pool
   const results = new Array(projects.length);
   let nextIdx = 0;
+  let done = 0;
   const workerCount = Math.max(1, Math.min(concurrency || 8, projects.length));
   const workers = [];
   for (let i = 0; i < workerCount; i++) {
@@ -1164,6 +1173,11 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
         const idx = nextIdx++;
         if (idx >= projects.length) return;
         results[idx] = await fetchOne(projects[idx]);
+        done++;
+        // Live progress for the popup; this step can take a while on big accounts
+        try {
+          chrome.runtime.sendMessage({ action: 'batchApiProgress', done, total: projects.length, title: projects[idx].title || projects[idx].id });
+        } catch (e) { /* popup closed: nothing to update */ }
       }
     })());
   }
