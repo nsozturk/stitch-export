@@ -31,7 +31,7 @@ const StitchFormatters = {
         }))
       },
       metadata: {
-        source: 'stitch.withgoogle.com',
+        source: 'stitch.google.com',
         project_id: conversationData.projectId,
         export_date: new Date().toISOString(),
         format: 'claude_code',
@@ -57,7 +57,7 @@ const StitchFormatters = {
         content: msg.content
       })),
       metadata: {
-        source: 'stitch.withgoogle.com',
+        source: 'stitch.google.com',
         project_id: conversationData.projectId,
         project_title: conversationData.projectTitle,
         export_date: new Date().toISOString(),
@@ -116,7 +116,7 @@ const StitchFormatters = {
         timestamp: msg.timestamp
       })),
       metadata: {
-        source: 'stitch.withgoogle.com',
+        source: 'stitch.google.com',
         project_id: conversationData.projectId,
         project_title: conversationData.projectTitle,
         export_date: new Date().toISOString(),

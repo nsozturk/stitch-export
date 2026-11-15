@@ -150,7 +150,7 @@ async function updateNotOnProjectMessage() {
   let onStitchHost = false;
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    onStitchHost = !!(tab && tab.url && tab.url.includes('stitch.withgoogle.com'));
+    onStitchHost = !!(tab && tab.url && /^https:\/\/stitch\.(withgoogle|google)\.com\//.test(tab.url));
   } catch (e) { /* keep the warning */ }
   const box = document.getElementById('notOnStitchBox');
   const title = document.getElementById('notOnStitchTitle');
@@ -173,7 +173,7 @@ async function checkIfOnStitchPage() {
       return false;
     }
 
-    return tab.url.includes('stitch.withgoogle.com') &&
+    return /^https:\/\/stitch\.(withgoogle|google)\.com\//.test(tab.url) &&
       tab.url.includes('/projects/');
   } catch (error) {
     console.error('[Stitch Export] Error checking page:', error);
@@ -611,7 +611,7 @@ function extractAndFormat(format, options = {}) {
       formattedData = {
         messages: messages.map(m => ({ role: m.role, content: m.content })),
         metadata: {
-          source: 'stitch.withgoogle.com',
+          source: 'stitch.google.com',
           project_id: projectId,
           format: 'openai_chat'
         }
@@ -624,7 +624,7 @@ function extractAndFormat(format, options = {}) {
           messages: messages
         },
         metadata: {
-          source: 'stitch.withgoogle.com',
+          source: 'stitch.google.com',
           project_id: projectId,
           format: 'claude_code'
         }

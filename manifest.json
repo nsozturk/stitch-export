@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Stitch Export",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "author": "nsozturk <telepenu@gmail.com>",
   "description": "Export Google Stitch projects (screens, images, design systems and chat) to ZIP and LLM-ready JSON for Claude and ChatGPT.",
   "permissions": [
@@ -12,6 +12,7 @@
     "tabs"
   ],
   "host_permissions": [
+    "https://stitch.google.com/*",
     "https://stitch.withgoogle.com/*",
     "https://*.appspot.com/*",
     "https://contribution.usercontent.google.com/*",
@@ -33,6 +34,7 @@
   "content_scripts": [
     {
       "matches": [
+        "https://stitch.google.com/*",
         "https://stitch.withgoogle.com/*",
         "https://*.appspot.com/*"
       ],

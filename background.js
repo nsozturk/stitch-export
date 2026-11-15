@@ -14,14 +14,14 @@ chrome.runtime.onInstalled.addListener(() => {
     id: 'stitch-export-context',
     title: 'Export Stitch Conversation',
     contexts: ['page'],
-    documentUrlPatterns: ['https://stitch.withgoogle.com/projects/*']
+    documentUrlPatterns: ['https://stitch.google.com/projects/*', 'https://stitch.withgoogle.com/projects/*']
   });
 
   chrome.contextMenus.create({
     id: 'stitch-export-all-context',
     title: 'Export All Stitch Projects',
     contexts: ['page'],
-    documentUrlPatterns: ['https://stitch.withgoogle.com/*']
+    documentUrlPatterns: ['https://stitch.google.com/*', 'https://stitch.withgoogle.com/*']
   });
 
   console.log('[Stitch Export] Context menu created');
@@ -49,7 +49,10 @@ const PROJECT_COUNT_CACHE_MS = 10 * 60 * 1000; // 10 min
 let _projectCountCache = { value: null, fetchedAt: 0 };
 let _fetchInFlight = null;
 
-const isStitchHost = (url) => typeof url === 'string' && url.indexOf('https://stitch.withgoogle.com/') === 0;
+// Stitch moved from stitch.withgoogle.com to stitch.google.com (the old host now redirects)
+const STITCH_ORIGIN = 'https://stitch.google.com';
+const STITCH_HOSTS = ['https://stitch.google.com/', 'https://stitch.withgoogle.com/'];
+const isStitchHost = (url) => typeof url === 'string' && STITCH_HOSTS.some(h => url.indexOf(h) === 0);
 const isProjectDetailUrl = (url) => isStitchHost(url) && /\/projects\/\d+/.test(url);
 const isProjectListUrl = (url) => isStitchHost(url) && !isProjectDetailUrl(url);
 
@@ -214,7 +217,7 @@ async function applyBadge(tab) {
 
     // Not a Stitch tab → clear
     await chrome.action.setBadgeText({ tabId, text: '' });
-    await chrome.action.setTitle({ tabId, title: 'Stitch Export — open stitch.withgoogle.com to use' });
+    await chrome.action.setTitle({ tabId, title: 'Stitch Export — open stitch.google.com to use' });
   } catch (e) {
     // Action API can throw if tab disappears; ignore
   }
@@ -670,7 +673,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
     updateBatchProgress('Opening Stitch dashboard...', 0, 0);
 
     workTab = await chrome.tabs.create({
-      url: 'https://stitch.withgoogle.com/',
+      url: `${STITCH_ORIGIN}/`,
       active: false
     });
     state.currentTabId = workTab.id;
@@ -689,7 +692,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
     }
 
     if (!init.projects || init.projects.length === 0) {
-      throw new Error('No projects found. Make sure you are logged into stitch.withgoogle.com');
+      throw new Error('No projects found. Make sure you are logged into stitch.google.com');
     }
 
     // Refresh badge cache with authoritative count
@@ -901,7 +904,7 @@ async function fetchAuthAndProjectsInPage() {
         const id = String((p && p[0]) || '').split('/')[1];
         if (!id || seen.has(id)) continue;
         seen.add(id);
-        projects.push({ id, title: p[1] || `Untitled ${id}`, url: `https://stitch.withgoogle.com/projects/${id}` });
+        projects.push({ id, title: p[1] || `Untitled ${id}`, url: `${location.origin}/projects/${id}` });
       }
     }
     if (projects.length === 0) {
@@ -1125,7 +1128,7 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
 async function fetchProjectList() {
   // Open dashboard in a background tab
   const tab = await chrome.tabs.create({
-    url: 'https://stitch.withgoogle.com/',
+    url: `${STITCH_ORIGIN}/`,
     active: false
   });
   batchExportState.currentTabId = tab.id;
@@ -1175,7 +1178,7 @@ async function fetchProjectList() {
               const id = String((p && p[0]) || '').split('/')[1];
               if (!id || seen.has(id)) continue;
               seen.add(id);
-              projects.push({ id, title: p[1] || `Untitled ${id}`, url: `https://stitch.withgoogle.com/projects/${id}` });
+              projects.push({ id, title: p[1] || `Untitled ${id}`, url: `${location.origin}/projects/${id}` });
             }
           }
           

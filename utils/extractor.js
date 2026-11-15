@@ -752,7 +752,7 @@ const StitchExtractor = {
    * Check if we're on a Stitch project page
    */
   isOnStitchProjectPage() {
-    return window.location.hostname === 'stitch.withgoogle.com' &&
+    return ['stitch.google.com', 'stitch.withgoogle.com'].includes(window.location.hostname) &&
       window.location.pathname.includes('/projects/');
   }
 };
