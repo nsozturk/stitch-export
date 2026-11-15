@@ -18,6 +18,9 @@ All notable changes to Stitch Export. Versions follow the `version` field in `ma
   as "no screens"; requests are now retried, and anything still failing — plus files that could not be
   downloaded and projects that failed entirely — is listed in `export-report.json` at the top of the
   ZIP and in each project's `chat.json` (`warnings`). The popup tells you when problems were recorded.
+- **Projects not opened for a while** came back with no final screens: Stitch only lists a project's
+  screens after it has been opened. Such projects are now opened one by one in a background tab
+  (the popup says so), then read again.
 - The popup could open blank when the background worker was busy; it now always renders.
 
 ### Added

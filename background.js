@@ -647,6 +647,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === 'cancelBatchExport') {
     batchExportState.cancelled = true;
+    if (batchExportState.projectTabId) {
+       chrome.tabs.remove(batchExportState.projectTabId).catch(() => {});
+       batchExportState.projectTabId = null;
+    }
     if (batchExportState.currentTabId) {
        chrome.tabs.remove(batchExportState.currentTabId).catch(() => {});
        batchExportState.currentTabId = null;
@@ -777,6 +781,47 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
     }
 
     const apiOk = (batchData.results || []).filter(r => r && r.success);
+
+    // Stitch only builds the final-screen list of a project that was opened
+    // recently (Carleria C6 came back empty twice, then complete once the owner
+    // had opened it). So, one at a time after the parallel pass: open each project
+    // whose list came back empty in a background tab, let Stitch load its canvas,
+    // close the tab and ask again.
+    const EMPTY_WARNING = 'Stitch returned no final screens';
+    const needsOpening = apiOk.filter(r => (r.warnings || []).some(w => w.startsWith(EMPTY_WARNING)));
+    for (let i = 0; i < needsOpening.length; i++) {
+      if (state.cancelled || state !== batchExportState) throw new Error('Export cancelled by user');
+      const r = needsOpening[i];
+      updateBatchProgress(`${needsOpening.length} project(s) had not been opened in Stitch for a while, so Stitch did not list their screens. Opening them one by one in a background tab: "${r.projectTitle || r.projectId}" (${i + 1}/${needsOpening.length})...`, i, needsOpening.length);
+      let projectTab = null;
+      try {
+        projectTab = await chrome.tabs.create({ url: `${STITCH_ORIGIN}${accountSlot}/projects/${r.projectId}`, active: false });
+        state.projectTabId = projectTab.id;
+        await waitForTabLoad(projectTab.id);
+        await delay(6000);
+      } catch (e) {
+        // tab failed or was closed: still ask again below
+      } finally {
+        if (projectTab) {
+          try { await chrome.tabs.remove(projectTab.id); } catch (e) {}
+        }
+        state.projectTabId = null;
+      }
+      if (state.cancelled || state !== batchExportState) throw new Error('Export cancelled by user');
+      const again = await chrome.scripting.executeScript({
+        target: { tabId: workTab.id },
+        func: fetchProjectsBatchInPage,
+        args: [[{ id: r.projectId, title: r.projectTitle }], 1]
+      });
+      const fresh = again && again[0] && again[0].result && again[0].result.results && again[0].result.results[0];
+      if (fresh && fresh.success && fresh.screens && fresh.screens.length) {
+        r.screens = fresh.screens;
+        r.turns = fresh.turns;
+        r.warnings = fresh.warnings;
+      } else {
+        r.warnings = (r.warnings || []).map(w => w.startsWith(EMPTY_WARNING) ? `${w} (also after opening the project)` : w);
+      }
+    }
     // Build screen index per project: uid → { name, htmlUrl, screenshotUrl,
     // screenPath, filename }. Same UID across ErneX final + chat turns is
     // deduplicated — we download each unique URL once.
@@ -1155,7 +1200,7 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
       // (spaced out) before accepting "no final screens", and say so if it stays empty.
       const generatedCount = turns.reduce((n, t) => n + ((t.assistant && t.assistant.generatedScreens) || []).length, 0);
       if (!erneX.error && screens.length === 0 && generatedCount > 0) {
-        for (let attempt = 1; attempt <= 3 && screens.length === 0; attempt++) {
+        for (let attempt = 1; attempt <= 1 && screens.length === 0; attempt++) {
           await new Promise(r => setTimeout(r, 2000 * attempt));
           const again = await rpc('ErneX', `[[["ErneX","[\\"projects/${project.id}\\",1]",null,"13"]]]`);
           if (!again.error) screens = parseFinalScreens(again.data);
