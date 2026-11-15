@@ -763,7 +763,7 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
     // Step 2: fire ALL ErneX + dNS8Mc API calls in the tab context with
     // internal parallelism (concurrency = API_CONCURRENCY). One big
     // executeScript dispatches the whole batch, returning when complete.
-    const API_CONCURRENCY = 10;
+    const API_CONCURRENCY = 6; // 10 made Stitch return empty screen lists for some projects
     updateBatchProgress(`Fetching API data for ${projects.length} projects (${API_CONCURRENCY} parallel)...`, 0, projects.length);
 
     const apiResults = await chrome.scripting.executeScript({
@@ -1060,14 +1060,16 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
       const warnings = [];
       const erneX = await rpc('ErneX', `[[["ErneX","[\\"projects/${project.id}\\",1]",null,"13"]]]`);
       if (erneX.error) warnings.push(`Final screen list failed: ${erneX.error}`);
-      const erneXInner = erneX.data || null;
-
-      const screens = [];
-      const screenList = (erneXInner && Array.isArray(erneXInner[0])) ? erneXInner[0] : [];
-      for (let i = 0; i < screenList.length; i++) {
-        const s = extractScreenInstance(screenList[i], `e${i}`);
-        if (s) screens.push(s);
-      }
+      const parseFinalScreens = (inner) => {
+        const list = (inner && Array.isArray(inner[0])) ? inner[0] : [];
+        const out = [];
+        for (let i = 0; i < list.length; i++) {
+          const s = extractScreenInstance(list[i], `e${i}`);
+          if (s) out.push(s);
+        }
+        return out;
+      };
+      let screens = parseFinalScreens(erneX.data);
 
       // ---- dNS8Mc: per-turn chat + generated screens + suggestions ----
       let turns = [];
@@ -1146,6 +1148,21 @@ async function fetchProjectsBatchInPage(projects, concurrency) {
         }
       } catch (chatErr) {
         warnings.push(`Chat history could not be read: ${chatErr.message}`);
+      }
+
+      // Stitch sometimes answers the final-screen list with an empty list under load
+      // even though the project has screens. If the chat generated screens, ask again
+      // (spaced out) before accepting "no final screens", and say so if it stays empty.
+      const generatedCount = turns.reduce((n, t) => n + ((t.assistant && t.assistant.generatedScreens) || []).length, 0);
+      if (!erneX.error && screens.length === 0 && generatedCount > 0) {
+        for (let attempt = 1; attempt <= 3 && screens.length === 0; attempt++) {
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+          const again = await rpc('ErneX', `[[["ErneX","[\\"projects/${project.id}\\",1]",null,"13"]]]`);
+          if (!again.error) screens = parseFinalScreens(again.data);
+        }
+        if (screens.length === 0) {
+          warnings.push(`Stitch returned no final screens although the chat generated ${generatedCount}; the per-turn screens are in history/`);
+        }
       }
 
       return {
