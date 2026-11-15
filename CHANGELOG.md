@@ -23,6 +23,12 @@ All notable changes to Stitch Export. Versions follow the `version` field in `ma
 ### Added
 - **Open Stitch** button: off Stitch the popup only offers a way to Stitch (switches to an open
   Stitch tab or opens one) instead of showing the format picker and Export All.
+- **Remote config** (`docs/config.json` on GitHub Pages, checked at most every 6 hours, fails open):
+  can announce a newer version, require a minimum version — exports are then locked behind an
+  **Update now** screen — and show a notice. Data only, no remote code, no new permission.
+- **What's new** card after an update (once), and a "What's new" link in the popup footer.
+- **Live progress** while reading projects (Reading project data N/M), a moving progress bar and an
+  elapsed-time clock, so a long export never looks frozen.
 - **Report a problem** links in the popup footer and on the error screen: a prefilled email or
   GitHub issue with the version, browser, page type and the error message (no URLs or account data).
 

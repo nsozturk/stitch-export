@@ -36,6 +36,20 @@ All calls are `POST /_/Nemo/data/batchexecute?rpcids=<id>&f.sid=<FdrFJe>&rt=c` f
 
 lh3 image URLs without a size suffix return a 286 px preview; append `=s0` for the original.
 
+## Remote config
+
+`docs/config.json` (served at `https://nsozturk.github.io/stitch-export/config.json`, CORS `*`) is read by
+`utils/remote-config.js` from the popup and before every export, cached 6 h, failing open:
+
+```json
+{ "latestVersion": "1.3.1", "minVersion": "1.3.1", "updateMessage": "…", "notice": { "level": "info|warning", "text": "…" } }
+```
+
+- Below `minVersion` the popup shows only the Update required screen and the background refuses to export.
+- Below `latestVersion` the popup shows an "update available" banner. `notice` shows a banner to everyone.
+- Raise `minVersion` only after that version is live on the Chrome Web Store, or users get locked out
+  with no update to install. Data only: never put code or URLs to code in this file.
+
 ## Verifying a change
 
 1. `node --check background.js content.js popup/popup.js utils/*.js`

@@ -3,7 +3,7 @@
  * Handles context menu, batch export, and background tasks
  */
 
-importScripts('libs/jszip.min.js', 'utils/formatters.js');
+importScripts('libs/jszip.min.js', 'utils/formatters.js', 'utils/remote-config.js');
 
 // Create context menu on installation
 chrome.runtime.onInstalled.addListener(() => {
@@ -713,6 +713,11 @@ async function handleExportAllProjects(format, options = {}, onlyProjectId = nul
   let workTab = null;
 
   try {
+    // Remote config can require a newer version (e.g. after Stitch changes its API)
+    const versionCheck = versionStatus(await getRemoteConfig(), chrome.runtime.getManifest().version);
+    if (versionCheck.state === 'required') {
+      throw new Error(`Update required: ${versionCheck.message || ''} Please update Stitch Export to ${versionCheck.min} or later.`.replace(/\s+/g, ' '));
+    }
     console.log('[Stitch Export] Starting API batch export...');
     updateBatchProgress('Opening Stitch dashboard...', 0, 0);
 

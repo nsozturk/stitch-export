@@ -10,7 +10,8 @@ const AppState = {
   LOADING: 'loading',
   SUCCESS: 'success',
   ERROR: 'error',
-  BATCH_EXPORT: 'batchExport'
+  BATCH_EXPORT: 'batchExport',
+  UPDATE_REQUIRED: 'updateRequired'
 };
 
 let currentState = AppState.NOT_ON_STITCH;
@@ -22,7 +23,8 @@ const states = {
   loading: document.getElementById('loadingState'),
   success: document.getElementById('successState'),
   error: document.getElementById('errorState'),
-  batchExport: document.getElementById('batchExportState')
+  batchExport: document.getElementById('batchExportState'),
+  updateRequired: document.getElementById('updateRequiredState')
 };
 
 const elements = {
@@ -92,6 +94,84 @@ function sendMessageWithTimeout(message, ms = 2500) {
   ]);
 }
 
+// ---- Remote config: update required / available, notices -------------------
+async function applyRemoteConfig() {
+  const version = chrome.runtime.getManifest().version;
+  const status = versionStatus(await getRemoteConfig(), version);
+  const banner = document.getElementById('appBanner');
+  const bannerText = document.getElementById('appBannerText');
+  const bannerUpdate = document.getElementById('appBannerUpdate');
+
+  if (status.state === 'required') {
+    const text = document.getElementById('updateRequiredText');
+    if (text) text.textContent = (status.message ? status.message + ' ' : '') +
+      `You have ${version}; ${status.min} or later is required.`;
+    setState(AppState.UPDATE_REQUIRED);
+    return true;
+  }
+
+  const lines = [];
+  if (status.state === 'available') lines.push(`Version ${status.latest} is available.`);
+  if (status.notice) lines.push(status.notice.text);
+  if (lines.length && banner && bannerText) {
+    bannerText.textContent = lines.join(' ');
+    banner.classList.toggle('warning', !!(status.notice && status.notice.level === 'warning'));
+    bannerUpdate?.classList.toggle('hidden', status.state !== 'available');
+    banner.classList.remove('hidden');
+  }
+  return false;
+}
+
+// Ask Chrome to fetch the new version now and restart the extension to apply it
+async function updateNow() {
+  const status = document.getElementById('updateStatusText');
+  const say = (t) => { if (status) status.textContent = t; };
+  say('Checking for the update…');
+  try {
+    const result = await chrome.runtime.requestUpdateCheck();
+    const state = (result && result.status) || result;
+    if (state === 'update_available') {
+      say('Installing the update…');
+      setTimeout(() => chrome.runtime.reload(), 800);
+      return;
+    }
+  } catch (e) { /* fall through to the waiting message */ }
+  say('The update is still being published on the Chrome Web Store. Chrome installs it automatically within a few hours; please try again later.');
+}
+
+// ---- What's new ------------------------------------------------------------
+const WHATS_NEW = {
+  version: '1.3.1',
+  items: [
+    'Works on stitch.google.com, Stitch’s new address.',
+    'Works with multiple Google accounts: exports the account you are on.',
+    'The toolbar count always matches the current account.',
+    'Live progress while reading projects, and problems are listed in export-report.json.',
+    '“Report a problem” and “Open Stitch” in the popup.'
+  ]
+};
+
+function renderWhatsNew() {
+  const card = document.getElementById('whatsNewCard');
+  const list = document.getElementById('whatsNewList');
+  const title = document.getElementById('whatsNewTitle');
+  if (!card || !list) return;
+  if (title) title.textContent = `What's new in ${WHATS_NEW.version}`;
+  list.replaceChildren(...WHATS_NEW.items.map(t => Object.assign(document.createElement('li'), { textContent: t })));
+  card.classList.remove('hidden');
+}
+
+function showWhatsNewOnceAfterUpdate() {
+  let seen = null;
+  try { seen = localStorage.getItem('whatsNewSeen'); } catch (e) { /* storage blocked */ }
+  if (seen !== WHATS_NEW.version) renderWhatsNew();
+}
+
+function closeWhatsNew() {
+  document.getElementById('whatsNewCard')?.classList.add('hidden');
+  try { localStorage.setItem('whatsNewSeen', WHATS_NEW.version); } catch (e) { /* storage blocked */ }
+}
+
 // Initialize popup
 async function initialize() {
   const versionLabel = document.getElementById('versionLabel');
@@ -101,6 +181,11 @@ async function initialize() {
 
   // Setup event listeners first so they always work
   setupEventListeners();
+
+  showWhatsNewOnceAfterUpdate();
+
+  // Remote config first: below the minimum version nothing else is offered
+  if (await applyRemoteConfig()) return;
 
   // Fire-and-forget: update the Export All label with the project count
   updateExportAllLabel();
@@ -220,6 +305,10 @@ function setupEventListeners() {
   elements.exportAllButton?.addEventListener('click', handleExportAll);
   document.getElementById('exportProjectButton')?.addEventListener('click', handleExportProject);
   document.getElementById('openStitchButton')?.addEventListener('click', openStitch);
+  document.getElementById('updateNowButton')?.addEventListener('click', updateNow);
+  document.getElementById('appBannerUpdate')?.addEventListener('click', updateNow);
+  document.getElementById('whatsNewClose')?.addEventListener('click', closeWhatsNew);
+  document.getElementById('whatsNewLink')?.addEventListener('click', renderWhatsNew);
   elements.exportAllButtonNotOnStitch?.addEventListener('click', handleExportAll);
   elements.exportLinksButton?.addEventListener('click', handleExportLinks);
   elements.exportLinksButtonNotOnStitch?.addEventListener('click', handleExportLinks);
@@ -806,6 +895,9 @@ function setState(state) {
       break;
     case AppState.BATCH_EXPORT:
       states.batchExport?.classList.remove('hidden');
+      break;
+    case AppState.UPDATE_REQUIRED:
+      states.updateRequired?.classList.remove('hidden');
       break;
   }
 }
