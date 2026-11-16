@@ -18,125 +18,134 @@ const POPUP_HTML = path.join(REPO_ROOT, 'popup', 'popup.html');
 
 /** Stub script injected before popup.js so it doesn't crash on chrome.* APIs. */
 const chromeStub = `
+  // The tab the popup "sees"; each capture sets it before the popup initialises
+  window.__tabUrl = window.__tabUrl || 'https://stitch.google.com/';
+  try { localStorage.setItem('whatsNewSeen', '1.3.1'); } catch (e) {}
   window.chrome = {
     runtime: {
       onMessage: { addListener: () => {} },
       sendMessage: (msg, cb) => {
-        // Default stubs for messages the popup sends on load
-        if (msg && msg.action === 'getBatchExportState') {
-          const r = { isRunning: false, total: 0, current: 0 };
-          if (cb) cb(r); return Promise.resolve(r);
-        }
-        if (msg && msg.action === 'getProjectCount') {
-          const r = { count: 71, cached: true };
-          if (cb) cb(r); return Promise.resolve(r);
-        }
-        if (cb) cb({});
-        return Promise.resolve({});
+        let r = {};
+        if (msg && msg.action === 'getBatchExportState') r = { isRunning: false, total: 0, current: 0 };
+        if (msg && msg.action === 'getProjectCount') r = { count: 117, cached: true };
+        if (cb) cb(r);
+        return Promise.resolve(r);
       },
       getURL: (p) => 'chrome-extension://stub/' + p,
+      getManifest: () => ({ version: '1.3.1' }),
+      requestUpdateCheck: () => Promise.resolve({ status: 'no_update' }),
       lastError: null
     },
     tabs: {
       query: (q, cb) => {
-        const r = [{ id: 1, url: 'https://stitch.withgoogle.com/projects/123', active: true }];
+        const r = [{ id: 1, windowId: 1, url: window.__tabUrl, active: true }];
         if (cb) cb(r); return Promise.resolve(r);
       },
       sendMessage: (id, msg, cb) => { if (cb) cb({}); return Promise.resolve({}); },
-      create: () => Promise.resolve({})
+      create: () => Promise.resolve({}),
+      update: () => Promise.resolve({})
     },
-    scripting: {
-      executeScript: () => Promise.resolve([{ result: { success: false } }])
-    },
+    windows: { update: () => Promise.resolve({}) },
+    scripting: { executeScript: () => Promise.resolve([{ result: { success: false } }]) },
     downloads: { download: () => Promise.resolve(1) }
   };
 `;
 
+const DASHBOARD = 'https://stitch.google.com/';
+const PROJECT = 'https://stitch.google.com/projects/6218260846420484087';
+
+// Each capture: which tab the popup believes it is on, then drive the real popup functions
 const captures = [
   {
-    file: '01-popup-ready-on-stitch.png',
+    file: '01-popup-dashboard.png',
+    url: DASHBOARD,
     setup: async (page) => {
-      // popup.js auto-detects state; force "ready"
       await page.evaluate(() => {
-        document.querySelectorAll('.state').forEach(e => e.classList.add('hidden'));
-        document.getElementById('readyState').classList.remove('hidden');
+        setState(AppState.NOT_ON_STITCH);
+        document.querySelectorAll('.export-all-label').forEach(el => { el.textContent = 'Export All Projects (117)'; });
       });
     }
   },
   {
-    file: '02-popup-custom-format.png',
+    file: '02-popup-project.png',
+    url: PROJECT,
     setup: async (page) => {
       await page.evaluate(() => {
-        document.querySelectorAll('.state').forEach(e => e.classList.add('hidden'));
-        document.getElementById('readyState').classList.remove('hidden');
-        const cs = document.getElementById('customSettings');
-        if (cs) cs.classList.remove('hidden');
-        const customRadio = document.querySelector('input[name="format"][value="custom"]');
-        const claudeRadio = document.querySelector('input[name="format"][value="claude"]');
-        if (claudeRadio) claudeRadio.checked = false;
-        if (customRadio) customRadio.checked = true;
+        setState(AppState.READY);
+        document.querySelectorAll('.export-all-label').forEach(el => { el.textContent = 'Export All Projects (117)'; });
       });
     }
   },
   {
-    file: '03-popup-not-on-stitch.png',
+    file: '03-popup-progress-reading.png',
+    url: DASHBOARD,
     setup: async (page) => {
       await page.evaluate(() => {
-        document.querySelectorAll('.state').forEach(e => e.classList.add('hidden'));
-        document.getElementById('notOnStitchState').classList.remove('hidden');
+        setState(AppState.BATCH_EXPORT);
+        startElapsedClock(Date.now() - 42000);
+        updateBatchProgressUI(71, 117, 'Step 1/3 · Reading projects 71/117: Vagora K19 Milano');
       });
     }
   },
   {
-    file: '04-popup-batch-progress.png',
+    file: '04-popup-progress-opening.png',
+    url: DASHBOARD,
     setup: async (page) => {
       await page.evaluate(() => {
-        document.querySelectorAll('.state').forEach(e => e.classList.add('hidden'));
-        document.getElementById('batchExportState').classList.remove('hidden');
-        const bar = document.getElementById('batchProgressBar');
-        if (bar) bar.style.width = '48%';
-        const txt = document.getElementById('batchProgressText');
-        if (txt) txt.textContent = 'Downloaded 34/71: Xporter Dashboard Command Center (6 files)';
-        const count = document.getElementById('batchProgressCount');
-        if (count) count.textContent = '34 / 71 projects';
+        setState(AppState.BATCH_EXPORT);
+        startElapsedClock(Date.now() - 95000);
+        updateBatchProgressUI(1, 3, 'Step 2/3 · 3 project(s) had not been opened in Stitch for a while. Opening them one by one in a background tab and reading only those again: "Carleria C9" (2/3)...');
       });
     }
   },
   {
-    file: '05-popup-success.png',
+    file: '05-popup-progress-downloading.png',
+    url: DASHBOARD,
     setup: async (page) => {
       await page.evaluate(() => {
-        document.querySelectorAll('.state').forEach(e => e.classList.add('hidden'));
-        document.getElementById('successState').classList.remove('hidden');
-        const msg = document.getElementById('successMessage');
-        if (msg) msg.textContent = 'Successfully exported 71/71 projects to ZIP!';
+        setState(AppState.BATCH_EXPORT);
+        startElapsedClock(Date.now() - 128000);
+        updateBatchProgressUI(88, 117, 'Step 3/3 · Downloading screen files 88/117: IAP kit · Toybox clay (37 files)');
       });
     }
   },
   {
-    file: '06-popup-error.png',
+    file: '06-popup-success.png',
+    url: DASHBOARD,
     setup: async (page) => {
       await page.evaluate(() => {
-        document.querySelectorAll('.state').forEach(e => e.classList.add('hidden'));
-        document.getElementById('errorState').classList.remove('hidden');
-        const msg = document.getElementById('errorMessage');
-        if (msg) msg.textContent = 'No conversation data found. Make sure you are on a Stitch project page with messages.';
+        setState(AppState.SUCCESS);
+        updateSuccessMessage('Successfully exported 117/117 projects to ZIP!');
       });
     }
   },
   {
-    file: '07-popup-loading-counting.png',
+    file: '07-popup-whats-new.png',
+    url: DASHBOARD,
     setup: async (page) => {
-      // Show "counting projects…" inline loading state
       await page.evaluate(() => {
-        document.querySelectorAll('.state').forEach(e => e.classList.add('hidden'));
-        document.getElementById('readyState').classList.remove('hidden');
-        document.querySelectorAll('.export-all-label').forEach(el => {
-          el.classList.add('is-loading');
-        });
-        document.querySelectorAll('.export-all-hint').forEach(el => {
-          el.classList.remove('hidden');
-        });
+        setState(AppState.NOT_ON_STITCH);
+        document.querySelectorAll('.export-all-label').forEach(el => { el.textContent = 'Export All Projects (117)'; });
+        renderWhatsNew();
+      });
+    }
+  },
+  {
+    file: '08-popup-not-on-stitch.png',
+    url: 'https://www.google.com/',
+    setup: async (page) => {
+      await page.evaluate(() => setState(AppState.NOT_ON_STITCH));
+    }
+  },
+  {
+    file: '09-popup-custom-format.png',
+    url: PROJECT,
+    setup: async (page) => {
+      await page.evaluate(() => {
+        setState(AppState.READY);
+        const custom = document.querySelector('input[name="format"][value="custom"]');
+        if (custom) { custom.checked = true; custom.dispatchEvent(new Event('change', { bubbles: true })); }
+        document.getElementById('customSettings')?.classList.remove('hidden');
       });
     }
   }
@@ -147,7 +156,7 @@ async function main() {
   let html = fs.readFileSync(POPUP_HTML, 'utf8');
   const stubTag = `<script>${chromeStub}</script>\n  `;
   // Insert stub right before the popup.js script tag
-  html = html.replace(/<script src="popup\.js"><\/script>/, stubTag + '<script src="popup.js"></script>');
+  html = html.replace('<script src="../utils/remote-config.js"></script>', stubTag + '<script src="../utils/remote-config.js"></script>');
 
   // Write temp HTML alongside popup so relative paths resolve
   const tempHtml = path.join(REPO_ROOT, 'popup', '_capture.html');
@@ -155,16 +164,20 @@ async function main() {
 
   const browser = await puppeteer.launch({
     headless: 'new',
+    // Use the installed Chrome when puppeteer has no bundled browser (PUPPETEER_EXECUTABLE_PATH overrides)
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
+      (fs.existsSync('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome') ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : undefined),
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 
   try {
     for (const c of captures) {
       const page = await browser.newPage();
-      await page.setViewport({ width: 400, height: 600, deviceScaleFactor: 2 });
+      await page.setViewport({ width: 400, height: 640, deviceScaleFactor: 2 });
+      await page.evaluateOnNewDocument((u) => { window.__tabUrl = u; }, c.url);
       await page.goto('file://' + tempHtml, { waitUntil: 'domcontentloaded' });
-      // Give popup.js a moment to run initialize() and stubs to respond
-      await new Promise(r => setTimeout(r, 350));
+      // Let initialize() finish (remote-config check included) before forcing a state
+      await new Promise(r => setTimeout(r, 2500));
       // Force the desired state
       await c.setup(page);
       // Settle layout

@@ -35,7 +35,7 @@
 - **Local-only** — talks only to Google's own Stitch endpoints from your logged-in tab; no servers,
   no analytics.
 
-![Batch export — 10 parallel API calls, 6 parallel downloads](assets/batch-export.png)
+![Live progress while every project is read](assets/batch-export.png)
 
 ## Installation
 
@@ -55,7 +55,7 @@ Works in Chrome and Chromium browsers that install Chrome Web Store extensions (
 
 ### Export every project
 
-![Live project count on the toolbar](assets/toolbar-badge.png)
+![Export every project from the Stitch dashboard](assets/toolbar-badge.png)
 
 1. Open [stitch.withgoogle.com](https://stitch.withgoogle.com) and click the Stitch Export icon
 2. Pick a format and click **Export All Projects (NN)**

@@ -168,7 +168,7 @@ def wrap_text(text, font, max_width):
     return lines
 
 
-def compose_screenshot(out_path, headline, body, popup_file, eyebrow="STITCH EXPORT v1.2.0"):
+def compose_screenshot(out_path, headline, body, popup_file, eyebrow="STITCH EXPORT v1.3.1"):
     """1280x800 marketing screenshot — left text, right popup with shadow."""
     W, H = 1280, 800
     bg = gradient(W, H, DEEP, MAUVE, vertical=False)
@@ -259,7 +259,7 @@ def compose_small_promo(out_path):
     draw.text((32, headline_y), headline, font=f_h, fill=WHITE)
 
     body_y = headline_y + 44
-    body = "Batch export + chat history + per-turn refs"
+    body = "Screens, images, design systems + chat"
     draw.text((32, body_y), body, font=f_b, fill=WHITE_DIM)
 
     # Bottom rib
@@ -289,10 +289,10 @@ def compose_marquee(out_path, popup_file):
     draw_wordmark(draw, pad_x, 64, scale=1.0)
 
     f_eye = font(14, bold=True)
-    draw.text((pad_x, 64 + 60), "CHROME EXTENSION · v1.2.0", font=f_eye, fill=MAUVE_LIGHT)
+    draw.text((pad_x, 64 + 60), "CHROME EXTENSION · v1.3.1", font=f_eye, fill=MAUVE_LIGHT)
 
     f_h = font(64, bold=True)
-    headline_lines = ["Archive every Stitch design", "in 30 seconds."]
+    headline_lines = ["Every Stitch project,", "in one ZIP."]
     y = 64 + 100
     for line in headline_lines:
         draw.text((pad_x, y), line, font=f_h, fill=WHITE)
@@ -300,7 +300,7 @@ def compose_marquee(out_path, popup_file):
         y += (bbox[3] - bbox[1]) + 16
 
     f_b = font(20)
-    body = "Pure-API batch export · per-turn chat history · toolbar count badge"
+    body = "Screens · full-size images · design systems · chat history · Claude & ChatGPT JSON"
     draw.text((pad_x, y + 12), body, font=f_b, fill=WHITE_DIM)
 
     # CTA chip
@@ -313,7 +313,7 @@ def compose_marquee(out_path, popup_file):
     draw.rounded_rectangle(
         (pad_x, chip_y, pad_x + chip_w, chip_y + chip_h),
         radius=22,
-        fill=(255, 255, 255, 30),
+        fill=DEEP,
         outline=MAUVE_LIGHT,
         width=1,
     )
@@ -343,38 +343,38 @@ def main():
     shots = [
         {
             "out": "screenshot-01-overview.png",
-            "popup": "01-popup-ready-on-stitch.png",
-            "eyebrow": "STITCH EXPORT · v1.2.0",
-            "headline": "Archive every Stitch design — in 30 seconds.",
-            "body": "Pure-API batch export. No DOM clicks. 70+ projects bundled into a single ZIP, sub-minute runtime.",
+            "popup": "01-popup-dashboard.png",
+            "eyebrow": "STITCH EXPORT · v1.3.1",
+            "headline": "Every Stitch project in one ZIP.",
+            "body": "Screens, full-size images, design systems and the whole chat history, for all your projects at once. Works on stitch.google.com.",
         },
         {
-            "out": "screenshot-02-batch-progress.png",
-            "popup": "04-popup-batch-progress.png",
-            "eyebrow": "BATCH EXPORT",
-            "headline": "Parallel by design.",
-            "body": "10 concurrent API calls + 6 parallel HTML downloads. Watch every project tick by in real time.",
+            "out": "screenshot-02-reading.png",
+            "popup": "03-popup-progress-reading.png",
+            "eyebrow": "STEP 1 OF 3 · READING",
+            "headline": "Watch it read every project.",
+            "body": "Live progress project by project, a moving bar and a clock. Close the popup any time; the export keeps running in the background.",
         },
         {
-            "out": "screenshot-03-toolbar-badge.png",
-            "popup": "07-popup-loading-counting.png",
-            "eyebrow": "TOOLBAR BADGE",
-            "headline": "Live project count, always visible.",
-            "body": "Mauve badge on the dashboard shows how many Stitch projects you have. EXP reminder on every project page.",
+            "out": "screenshot-03-nothing-skipped.png",
+            "popup": "04-popup-progress-opening.png",
+            "eyebrow": "STEP 2 OF 3 · NOTHING SKIPPED",
+            "headline": "No project comes back empty.",
+            "body": "Projects Stitch has not opened for a while are opened in a background tab and read again. Anything still missing is listed in export-report.json.",
         },
         {
-            "out": "screenshot-04-success.png",
-            "popup": "05-popup-success.png",
-            "eyebrow": "ONE ZIP",
-            "headline": "Final designs + full history.",
-            "body": "screens/ for the current state. history/turn-NNN/ for every design generated in each conversation turn.",
+            "out": "screenshot-04-project-zip.png",
+            "popup": "02-popup-project.png",
+            "eyebrow": "ONE PROJECT",
+            "headline": "Export just the project you are on.",
+            "body": "One ZIP with every screen, a full-size picture of each, design systems and the conversation. Works with several Google accounts.",
         },
         {
             "out": "screenshot-05-formats.png",
-            "popup": "02-popup-custom-format.png",
-            "eyebrow": "EXPORT FORMATS",
+            "popup": "09-popup-custom-format.png",
+            "eyebrow": "LLM-READY",
             "headline": "Claude · ChatGPT · custom roles.",
-            "body": "JSON output drops straight into any LLM. Configure user/assistant role names yourself for custom pipelines.",
+            "body": "Every ZIP includes the chat in your chosen format, ready for another model. Rename the user and assistant roles for your own pipeline.",
         },
     ]
     for s in shots:
@@ -388,7 +388,7 @@ def main():
 
     # Promo tiles
     compose_small_promo(OUT / "promo-small-440x280.png")
-    compose_marquee(OUT / "promo-marquee-1400x560.png", POPUP / "01-popup-ready-on-stitch.png")
+    compose_marquee(OUT / "promo-marquee-1400x560.png", POPUP / "01-popup-dashboard.png")
 
     print(f"\nOutput dir: {OUT.relative_to(ROOT)}")
 
