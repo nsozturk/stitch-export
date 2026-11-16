@@ -52,7 +52,7 @@ const chromeStub = `
 `;
 
 const DASHBOARD = 'https://stitch.google.com/';
-const PROJECT = 'https://stitch.google.com/projects/6218260846420484087';
+const PROJECT = 'https://stitch.google.com/projects/1234567890123456789';
 
 // Each capture: which tab the popup believes it is on, then drive the real popup functions
 const captures = [
@@ -83,7 +83,7 @@ const captures = [
       await page.evaluate(() => {
         setState(AppState.BATCH_EXPORT);
         startElapsedClock(Date.now() - 42000);
-        updateBatchProgressUI(71, 117, 'Step 1/3 · Reading projects 71/117: Vagora K19 Milano');
+        updateBatchProgressUI(71, 117, 'Step 1/3 · Reading projects 71/117: Travel Planner App');
       });
     }
   },
@@ -94,7 +94,7 @@ const captures = [
       await page.evaluate(() => {
         setState(AppState.BATCH_EXPORT);
         startElapsedClock(Date.now() - 95000);
-        updateBatchProgressUI(1, 3, 'Step 2/3 · 3 project(s) had not been opened in Stitch for a while. Opening them one by one in a background tab and reading only those again: "Carleria C9" (2/3)...');
+        updateBatchProgressUI(1, 3, 'Step 2/3 · 3 project(s) had not been opened in Stitch for a while. Opening them one by one in a background tab and reading only those again: "Recipe Book" (2/3)...');
       });
     }
   },
@@ -105,7 +105,7 @@ const captures = [
       await page.evaluate(() => {
         setState(AppState.BATCH_EXPORT);
         startElapsedClock(Date.now() - 128000);
-        updateBatchProgressUI(88, 117, 'Step 3/3 · Downloading screen files 88/117: IAP kit · Toybox clay (37 files)');
+        updateBatchProgressUI(88, 117, 'Step 3/3 · Downloading screen files 88/117: Fitness Tracker (37 files)');
       });
     }
   },
